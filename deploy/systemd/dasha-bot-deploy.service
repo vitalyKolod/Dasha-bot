@@ -1,0 +1,8 @@
+[Unit]
+Description=Deploy Dasha bot from GitHub main after checks
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/dasha-bot/scripts/deploy-on-server.sh

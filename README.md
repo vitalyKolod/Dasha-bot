@@ -176,3 +176,9 @@ Development использует цветной `pino-pretty`; production пиш
 - invite не создается: бот не администратор или не имеет права приглашать.
 
 Health check: `GET /health` → `{ "status": "ok" }`.
+
+## Автоматическое обновление VPS из GitHub
+
+Сервер хранит Git checkout в `/opt/dasha-bot`. Таймер `dasha-bot-deploy.timer` проверяет `main` каждые пять минут. Новая версия устанавливается в отдельную папку, проходит форматирование, lint, typecheck, тесты и сборку. Только после этого PM2 переключается на неё; при неудачном health check предыдущая версия возвращается. Серверный `.env` копируется в новую папку и никогда не берётся из GitHub.
+
+На сервере: `systemctl status dasha-bot-deploy.timer`, `journalctl -u dasha-bot-deploy.service -n 80`, `git -C /opt/dasha-bot rev-parse --short HEAD`. Публикация новой версии выполняется отправкой проверенного коммита в `main`.

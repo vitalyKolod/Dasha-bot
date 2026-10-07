@@ -1,0 +1,11 @@
+[Unit]
+Description=Check GitHub for Dasha bot updates every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=dasha-bot-deploy.service
+
+[Install]
+WantedBy=timers.target
