@@ -50,6 +50,7 @@ describe('Robokassa checkout', () => {
     const url = new URL(checkout.checkoutUrl);
     expect(url.searchParams.get('OutSum')).toBe('990.00');
     expect(url.searchParams.get('InvId')).toBe('42');
+    expect(checkout.providerPaymentId).toBe('42');
     expect(url.searchParams.get('IsTest')).toBe('1');
     expect(url.searchParams.get('SignatureValue')).toBe(
       createHash('sha256').update('shop:990.00:42:one').digest('hex'),

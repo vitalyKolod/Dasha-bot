@@ -36,7 +36,11 @@ export class RobokassaPaymentProvider implements PaymentProvider {
       Encoding: 'utf-8',
       ...(this.options.testMode ? { IsTest: '1' } : {}),
     }).toString();
-    return Promise.resolve({ checkoutUrl: url.toString(), providerInvoiceId: input.invoiceId });
+    return Promise.resolve({
+      checkoutUrl: url.toString(),
+      providerInvoiceId: input.invoiceId,
+      providerPaymentId: input.invoiceId,
+    });
   }
   getPaymentStatus(): Promise<ProviderPaymentStatus> {
     return Promise.resolve('pending');

@@ -37,6 +37,7 @@ export class PaymentService {
       try {
         payment = await this.payments.create({
           providerInvoiceId: invoiceId,
+          ...(this.provider.name === 'robokassa' ? { providerPaymentId: invoiceId } : {}),
           publicId: randomUUID(),
           userId: input.userId,
           telegramId: input.telegramId,
