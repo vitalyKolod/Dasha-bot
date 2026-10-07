@@ -55,7 +55,7 @@ export async function startApplication() {
     }
   }
   const server = await createHttpServer(config, logger, provider, payments, access, bot);
-  const address = await server.listen({ port: config.PORT, host: '0.0.0.0' });
+  const address = await server.listen({ port: config.PORT, host: config.HTTP_HOST });
   logger.info({ address }, '✅ HTTP server started');
   const reminders = new ReminderScheduler(
     config.REMINDER_CRON,

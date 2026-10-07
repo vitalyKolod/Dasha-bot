@@ -183,4 +183,6 @@ Health check: `GET /health` → `{ "status": "ok" }`.
 
 Сервер хранит Git checkout в `/opt/dasha-bot`. Таймер `dasha-bot-deploy.timer` проверяет `main` каждые пять минут. Новая версия устанавливается в отдельную папку, проходит форматирование, lint, typecheck, тесты и сборку. Только после этого PM2 переключается на неё; при неудачном health check предыдущая версия возвращается. Серверный `.env` копируется в новую папку и никогда не берётся из GitHub.
 
+HTTP-сервер по умолчанию слушает только `127.0.0.1`; публичный HTTPS принимает Nginx. Для другого сетевого окружения можно задать `HTTP_HOST` в `.env`.
+
 На сервере: `systemctl status dasha-bot-deploy.timer`, `journalctl -u dasha-bot-deploy.service -n 80`, `git -C /opt/dasha-bot rev-parse --short HEAD`. Публикация новой версии выполняется отправкой проверенного коммита в `main`.

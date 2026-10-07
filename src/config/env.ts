@@ -10,6 +10,7 @@ const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    HTTP_HOST: z.ipv4().default('127.0.0.1'),
     APP_BASE_URL: z.url().default('http://localhost:3000'),
     PUBLIC_BASE_URL: optionalString.pipe(z.url().optional()),
     BOT_TOKEN: z.string().trim().min(1, 'BOT_TOKEN is required'),
