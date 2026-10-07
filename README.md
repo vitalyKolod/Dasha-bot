@@ -100,6 +100,8 @@ ROBOKASSA_HASH_ALGORITHM=SHA256
 - Success URL: `https://YOUR_PUBLIC_HOST/api/payments/robokassa/success`, GET;
 - Fail URL: `https://YOUR_PUBLIC_HOST/api/payments/robokassa/fail`, GET.
 
+Текущий тестовый адрес VPS: `https://dasha.135-106-217-130.sslip.io`. Подставьте его вместо `https://YOUR_PUBLIC_HOST` в трёх URL кабинета Robokassa.
+
 ResultURL сверяет подпись Паролем №2 и сумму с заказом. Только он переводит платёж в `succeeded`, активирует подписку и отправляет сообщение в Telegram. Повторное уведомление отвечает `OK{InvId}` без повторной выдачи. SuccessURL и FailURL только возвращают пользователя в бот. При тестовой оплате checkout подписывается тестовым Паролем №1 и содержит `IsTest=1`. Для будущего реального режима предусмотрены `ROBOKASSA_PASSWORD_1` и `ROBOKASSA_PASSWORD_2`; они нужны только при `ROBOKASSA_TEST_MODE=false`.
 
 После настройки откройте бота, выберите тариф, нажмите «💳 Оплатить» и проведите тестовый платёж. Сервер должен быть доступен Robokassa по `PUBLIC_BASE_URL`.
