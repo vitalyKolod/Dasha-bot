@@ -48,7 +48,8 @@ mv "$APP_DIR" "$backup"
 mv "$stage" "$APP_DIR"
 stage=''
 if pm2 restart dasha-bot --update-env; then
-  for _ in {1..15}; do
+  # Telegram initialization can be slow on this VPS; wait up to two minutes.
+  for _ in {1..60}; do
     if curl --fail --silent --max-time 2 http://127.0.0.1:3001/health >/dev/null; then
       pm2 save
       echo "Deployed: ${target_sha:0:12}"
