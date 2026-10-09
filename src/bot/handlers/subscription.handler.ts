@@ -2,10 +2,15 @@ import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotContext } from '../context.js';
 import { getProduct } from '../../config/products.js';
 import { formatDate } from '../ui/helpers/formatDate.js';
+import { showWaitlist } from './waitlist.handler.js';
 import { renderScreen } from '../ui/renderScreen.js';
 export function registerSubscriptionHandler(bot: Bot<BotContext>): void {
   bot.callbackQuery('subscription', async (ctx) => {
     if (!ctx.from) return;
+    if (ctx.config.PRE_REGISTRATION) {
+      await showWaitlist(ctx);
+      return;
+    }
     const subscription = await ctx.services.subscriptions.getActive(String(ctx.from.id));
     if (!subscription) {
       await renderScreen(ctx, {

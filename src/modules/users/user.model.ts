@@ -6,6 +6,8 @@ export interface User {
   firstName?: string;
   lastName?: string;
   isBlocked: boolean;
+  waitlistJoinedAt?: Date;
+  waitlistSourceCode?: string;
   lastActivityAt: Date;
   firstSourceCode?: string;
   lastSourceCode?: string;
@@ -22,6 +24,8 @@ const schema = new Schema<User>(
     lastName: String,
     isBlocked: { type: Boolean, default: false },
     lastActivityAt: { type: Date, required: true, default: Date.now },
+    waitlistJoinedAt: { type: Date, index: true },
+    waitlistSourceCode: String,
     firstSourceCode: String,
     lastSourceCode: String,
     receivedMaterialCodes: { type: [String], default: [] },

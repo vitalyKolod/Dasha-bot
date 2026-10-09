@@ -12,6 +12,10 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
     if (!ctx.from) return;
     await ctx.services.users.touch(ctx.from);
     ctx.logger.info({ telegramId: ctx.from.id, username: ctx.from.username }, '👤 USER START');
+    if (ctx.config.CHECKLIST_MODE && !ctx.config.adminIds.has(String(ctx.from.id))) {
+      await sendWelcome(ctx);
+      return;
+    }
     const payload = ctx.match.trim();
     if (payload === 'payment_success') {
       await ctx.reply('⏳ Проверяем оплату. Подтверждение придёт сюда после обработки платежа.');

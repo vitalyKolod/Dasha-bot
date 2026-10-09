@@ -32,6 +32,14 @@ beforeEach(() => {
 });
 
 describe('/start routing', () => {
+  it('replaces old deep links with checklist welcome in launch mode', async () => {
+    const { ctx, reply, findByToken, getActive } = context(`pay_${'A'.repeat(40)}`, false);
+    ctx.config.CHECKLIST_MODE = true;
+    await start(ctx);
+    expect(findByToken).not.toHaveBeenCalled();
+    expect(getActive).not.toHaveBeenCalled();
+    expect(reply.mock.calls[0]?.[0]).toContain('подготовки твоей морозилки');
+  });
   it('keeps pay_ links on the existing payment path', async () => {
     const { ctx, reply, findByToken } = context(`pay_${'A'.repeat(40)}`, true);
     const material = vi.spyOn(MaterialModel, 'findOne');

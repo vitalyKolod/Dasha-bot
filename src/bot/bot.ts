@@ -4,6 +4,9 @@ import { Agent } from 'node:https';
 import type { Logger } from 'pino';
 import type { AppConfig } from '../config/env.js';
 import type { BotContext, Services } from './context.js';
+import { registerChecklistHandlers } from './handlers/checklist.handler.js';
+import { sendWelcome, showMainMenu } from './handlers/menu.handler.js';
+import { registerWaitlistHandlers } from './handlers/waitlist.handler.js';
 import { registerStartHandler } from './handlers/start.handler.js';
 import { registerMenuHandlers } from './handlers/menu.handler.js';
 import { registerProductHandlers } from './handlers/products.handler.js';
@@ -41,8 +44,29 @@ export function createBot(
     ctx.services = getServices();
     await next();
   });
+  bot.use(async (ctx, next) => {
+    if (!config.CHECKLIST_MODE || (ctx.from && config.adminIds.has(String(ctx.from.id)))) {
+      await next();
+      return;
+    }
+    if (ctx.callbackQuery) {
+      if (ctx.callbackQuery.data === 'checklist') await next();
+      else await showMainMenu(ctx);
+      return;
+    }
+    if (ctx.message?.text && /^\/start(?:@\w+)?(?:\s|$)/.test(ctx.message.text)) {
+      await next();
+      return;
+    }
+    if (ctx.message?.text?.startsWith('/')) {
+      if (ctx.from) await ctx.services.users.touch(ctx.from);
+      await sendWelcome(ctx);
+    }
+  });
+  registerChecklistHandlers(bot);
   registerStartHandler(bot);
   registerMenuHandlers(bot);
+  registerWaitlistHandlers(bot);
   registerProductHandlers(bot);
   registerPaymentHandlers(bot);
   registerSubscriptionHandler(bot);

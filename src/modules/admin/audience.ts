@@ -4,6 +4,7 @@ import { SubscriptionModel } from '../subscriptions/subscription.model.js';
 
 export const AUDIENCES = {
   all: 'Все пользователи',
+  waitlist: '❤️ Предзапись',
   started: 'Начали бота',
   unpaid: 'Не оплатили',
   active: 'Активная подписка',
@@ -14,6 +15,11 @@ export type Audience = keyof typeof AUDIENCES;
 export const isAudience = (value: string): value is Audience => value in AUDIENCES;
 
 export async function audienceIds(audience: Audience, expiringDays: number, now = new Date()) {
+  if (audience === 'waitlist')
+    return UserModel.distinct('telegramId', {
+      waitlistJoinedAt: { $exists: true },
+      isBlocked: { $ne: true },
+    });
   const users = await UserModel.find({}, { telegramId: 1 }).lean();
   if (audience === 'all' || audience === 'started') return users.map((u) => u.telegramId);
   const ids = users.map((u) => u.telegramId);

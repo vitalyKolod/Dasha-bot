@@ -22,6 +22,7 @@ import {
 import { UserModel } from '../../../modules/users/user.model.js';
 import { PaymentModel } from '../../../modules/payments/payment.model.js';
 import { SubscriptionModel } from '../../../modules/subscriptions/subscription.model.js';
+import { waitlistMessage } from '../../ui/messages/start.message.js';
 import { sleep } from '../../../shared/utils/sleep.js';
 
 const isAdmin = (ctx: BotContext) =>
@@ -56,13 +57,20 @@ const materialLink = (ctx: BotContext, code: string) =>
 
 export async function sendContent(api: Api, chatId: number, messages: ContentMessage[]) {
   for (const item of messages) {
-    if (item.kind === 'text' && item.text !== undefined) await api.sendMessage(chatId, item.text);
-    else
+    if (item.kind === 'text' && item.text !== undefined) {
+      if (item.entities) await api.sendMessage(chatId, item.text, { entities: item.entities });
+      else await api.sendMessage(chatId, item.text);
+    } else
       await api.copyMessage(
         chatId,
         item.chatId,
         item.messageId,
-        item.caption !== undefined ? { caption: item.caption } : {},
+        item.caption !== undefined
+          ? {
+              caption: item.caption,
+              ...(item.captionEntities ? { caption_entities: item.captionEntities } : {}),
+            }
+          : {},
       );
   }
 }
@@ -91,9 +99,17 @@ export async function deliverMaterial(ctx: BotContext, code: string): Promise<bo
     );
     const active = await ctx.services.subscriptions.getActive(telegramId);
     if (!active)
-      await ctx.reply(material.inviteText || defaultInvite, {
-        reply_markup: new InlineKeyboard().text(material.inviteButton || defaultButton, 'products'),
-      });
+      await ctx.reply(
+        ctx.config?.PRE_REGISTRATION ? waitlistMessage : material.inviteText || defaultInvite,
+        {
+          reply_markup: new InlineKeyboard().text(
+            ctx.config?.PRE_REGISTRATION
+              ? '❤️ ЖДУ ОТКРЫТИЯ'
+              : material.inviteButton || defaultButton,
+            ctx.config?.PRE_REGISTRATION ? 'waitlist' : 'products',
+          ),
+        },
+      );
   }
   return true;
 }
@@ -126,6 +142,8 @@ function contentFromMessage(message: BotContext['message']): ContentMessage | nu
     kind,
     ...(message.text ? { text: message.text } : {}),
     ...(message.caption ? { caption: message.caption } : {}),
+    ...(message.entities ? { entities: message.entities } : {}),
+    ...(message.caption_entities ? { captionEntities: message.caption_entities } : {}),
   };
 }
 
@@ -199,6 +217,8 @@ async function broadcastCard(ctx: BotContext) {
     .text('✏️ Сообщения', 'admin:bc:messages')
     .row()
     .text('👥 Выбрать аудиторию', 'admin:bc:audiences')
+    .row()
+    .text(d.includeJoinButton ? '✅ Кнопка «Вступить»' : '➕ Кнопка «Вступить»', 'admin:bc:join')
     .row()
     .text('👀 Предпросмотр', 'admin:bc:preview')
     .row()
@@ -285,6 +305,10 @@ async function runBroadcast(bot: Bot<BotContext>, id: string) {
     const recipient = d.recipientIds[d.cursor]!;
     try {
       await sendContent(bot.api, Number(recipient), d.messages);
+      if (d.includeJoinButton)
+        await bot.api.sendMessage(Number(recipient), '❤️ Вступить в клуб', {
+          reply_markup: new InlineKeyboard().text('❤️ Вступить', 'products'),
+        });
       await BroadcastDraftModel.updateOne({ _id: id }, { $inc: { sent: 1 } });
     } catch (error) {
       const blocked = error instanceof Error && /403|blocked by the user/i.test(error.message);
@@ -328,18 +352,18 @@ export function registerAdminHandlers(bot: Bot<BotContext>): void {
       audienceIds('expiring', ctx.config.ADMIN_EXPIRING_DAYS),
     ]);
     await renderScreen(ctx, {
-      text: `📊 <b>Обзор</b>\nВсего пользователей: ${s.users}\nНовых сегодня: ${s.newToday}\nОплативших: ${await PaymentModel.distinct('telegramId', { status: 'succeeded' }).then((ids) => ids.length)}\nБез успешной оплаты: ${unpaid.length}\nАктивных подписок: ${s.active}\nСкоро закончится (за ${ctx.config.ADMIN_EXPIRING_DAYS} дн.): ${expiring.length}\nУспешных платежей: ${s.succeeded}\nВыручка: ${formatMoney(s.revenue)}`,
+      text: `📊 <b>Обзор</b>\nВсего пользователей: ${s.users}\nНовых сегодня: ${s.newToday}\nПредзапись: ${await UserModel.countDocuments({ waitlistJoinedAt: { $exists: true } })}\nОплативших: ${await PaymentModel.distinct('telegramId', { status: 'succeeded' }).then((ids) => ids.length)}\nБез успешной оплаты: ${unpaid.length}\nАктивных подписок: ${s.active}\nСкоро закончится (за ${ctx.config.ADMIN_EXPIRING_DAYS} дн.): ${expiring.length}\nУспешных платежей: ${s.succeeded}\nВыручка: ${formatMoney(s.revenue)}`,
       keyboard: adminBackKeyboard(),
     });
   });
   bot.callbackQuery(
-    /^admin:users(?::(started|unpaid|active|expiring|expired):([0-9]+))?$/,
+    /^admin:users(?::(started|waitlist|unpaid|active|expiring|expired):([0-9]+))?$/,
     async (ctx) => {
       if (!isAdmin(ctx)) return;
       if (!ctx.match[1]) {
         const kb = new InlineKeyboard();
-        (['started', 'unpaid', 'active', 'expiring', 'expired'] as Audience[]).forEach((a) =>
-          kb.text(AUDIENCES[a], `admin:users:${a}:0`).row(),
+        (['started', 'waitlist', 'unpaid', 'active', 'expiring', 'expired'] as Audience[]).forEach(
+          (a) => kb.text(AUDIENCES[a], `admin:users:${a}:0`).row(),
         );
         kb.text('🏠 Главное меню', 'admin:menu');
         await renderScreen(ctx, {
@@ -375,7 +399,7 @@ export function registerAdminHandlers(bot: Bot<BotContext>): void {
     },
   );
   bot.callbackQuery(
-    /^admin:user:([0-9]+):(started|unpaid|active|expiring|expired):([0-9]+)$/,
+    /^admin:user:([0-9]+):(started|waitlist|unpaid|active|expiring|expired):([0-9]+)$/,
     async (ctx) => {
       if (!isAdmin(ctx)) return;
       const [id, audience, page] = ctx.match.slice(1) as [string, Audience, string];
@@ -391,7 +415,7 @@ export function registerAdminHandlers(bot: Bot<BotContext>): void {
         { title: 1, code: 1 },
       );
       await renderScreen(ctx, {
-        text: `👤 <b>${h([u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || id)}</b>\nID: <code>${id}</code>\nUsername: ${h(u.username ? '@' + u.username : '—')}\nПервый вход: ${date(u.createdAt)}\nПервый источник: ${h(u.firstSourceCode)}\nПоследний источник: ${h(u.lastSourceCode)}\nМатериалы: ${materials.length ? materials.map((m) => h(m.title)).join(', ') : '—'}\nУспешных платежей: ${paid}\nПоследний платёж: ${h(last?.status)}\nПодписка: ${h(sub?.status)}\nСрок: ${sub?.expiresAt === null ? 'бессрочно' : date(sub?.expiresAt)}`,
+        text: `👤 <b>${h([u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || id)}</b>\nID: <code>${id}</code>\nUsername: ${h(u.username ? '@' + u.username : '—')}\nПервый вход: ${date(u.createdAt)}\nПредзапись: ${date(u.waitlistJoinedAt)}\nИсточник предзаписи: ${h(u.waitlistSourceCode)}\nПервый источник: ${h(u.firstSourceCode)}\nПоследний источник: ${h(u.lastSourceCode)}\nМатериалы: ${materials.length ? materials.map((m) => h(m.title)).join(', ') : '—'}\nУспешных платежей: ${paid}\nПоследний платёж: ${h(last?.status)}\nПодписка: ${h(sub?.status)}\nСрок: ${sub?.expiresAt === null ? 'бессрочно' : date(sub?.expiresAt)}`,
         keyboard: back(`admin:users:${audience}:${page}`),
       });
     },
@@ -455,9 +479,15 @@ export function registerAdminHandlers(bot: Bot<BotContext>): void {
     if (!m.messages.length) await ctx.reply('Материал пуст.');
     else {
       await sendContent(ctx.api, ctx.chat!.id, m.messages);
-      await ctx.reply(m.inviteText || defaultInvite, {
-        reply_markup: new InlineKeyboard().text(m.inviteButton || defaultButton, 'products'),
-      });
+      await ctx.reply(
+        ctx.config.PRE_REGISTRATION ? waitlistMessage : m.inviteText || defaultInvite,
+        {
+          reply_markup: new InlineKeyboard().text(
+            ctx.config.PRE_REGISTRATION ? '❤️ ЖДУ ОТКРЫТИЯ' : m.inviteButton || defaultButton,
+            ctx.config.PRE_REGISTRATION ? 'waitlist' : 'products',
+          ),
+        },
+      );
     }
     await ctx.reply('Предпросмотр завершён.', { reply_markup: back(`admin:mat:open:${m.id}`) });
   });
@@ -494,7 +524,7 @@ export function registerAdminHandlers(bot: Bot<BotContext>): void {
     await renderScreen(ctx, { text: 'Выберите аудиторию рассылки:', keyboard: kb });
   });
   bot.callbackQuery(
-    /^admin:bc:audience:(all|started|unpaid|active|expiring|expired)$/,
+    /^admin:bc:audience:(all|started|waitlist|unpaid|active|expiring|expired)$/,
     async (ctx) => {
       if (!isAdmin(ctx)) return;
       const d = await draft(ctx);
@@ -503,12 +533,25 @@ export function registerAdminHandlers(bot: Bot<BotContext>): void {
       await broadcastCard(ctx);
     },
   );
+  bot.callbackQuery('admin:bc:join', async (ctx) => {
+    if (!isAdmin(ctx)) return;
+    const d = await draft(ctx);
+    d.includeJoinButton = !d.includeJoinButton;
+    await d.save();
+    await broadcastCard(ctx);
+  });
   bot.callbackQuery('admin:bc:preview', async (ctx) => {
     if (!isAdmin(ctx)) return;
     const d = await draft(ctx);
     await ctx.answerCallbackQuery();
     if (!d.messages.length) await ctx.reply('Черновик пуст.');
-    else await sendContent(ctx.api, ctx.chat!.id, d.messages);
+    else {
+      await sendContent(ctx.api, ctx.chat!.id, d.messages);
+      if (d.includeJoinButton)
+        await ctx.reply('❤️ Вступить в клуб', {
+          reply_markup: new InlineKeyboard().text('❤️ Вступить', 'products'),
+        });
+    }
     await ctx.reply('Предпросмотр завершён.', { reply_markup: back('admin:broadcast') });
   });
   bot.callbackQuery('admin:bc:confirm', async (ctx) => {
@@ -524,7 +567,7 @@ export function registerAdminHandlers(bot: Bot<BotContext>): void {
     const audience = isAudience(d.audience) ? d.audience : 'all';
     const ids = await audienceIds(audience, ctx.config.ADMIN_EXPIRING_DAYS);
     await renderScreen(ctx, {
-      text: `Подтвердите рассылку.\nАудитория: <b>${h(AUDIENCES[audience])}</b>\nПолучателей: <b>${ids.length}</b>\nСообщений каждому: ${d.messages.length}\n\nПеред отправкой посмотрите предпросмотр.`,
+      text: `Подтвердите рассылку.\nАудитория: <b>${h(AUDIENCES[audience])}</b>\nПолучателей: <b>${ids.length}</b>\nСообщений каждому: ${d.messages.length}\nКнопка «Вступить»: ${d.includeJoinButton ? 'да' : 'нет'}\n\nПеред отправкой посмотрите предпросмотр.`,
       keyboard: new InlineKeyboard()
         .text('👀 Предпросмотр', 'admin:bc:preview')
         .row()
@@ -717,7 +760,11 @@ export function registerAdminHandlers(bot: Bot<BotContext>): void {
           return;
         }
         item.text = text;
-      } else item.caption = text.trim() === '-' ? '' : text;
+        item.entities = ctx.message?.entities;
+      } else {
+        item.caption = text.trim() === '-' ? '' : text;
+        item.captionEntities = text.trim() === '-' ? undefined : ctx.message?.entities;
+      }
       source.markModified('messages');
       await source.save();
       await clearDialog(ctx);
@@ -739,7 +786,10 @@ export function registerAdminHandlers(bot: Bot<BotContext>): void {
       const index = dialog.index ?? -1;
       if (!source.messages[index]) return;
       const previousCaption = source.messages[index].caption;
-      if (mode.endsWith('_media') && previousCaption !== undefined) item.caption = previousCaption;
+      if (mode.endsWith('_media') && previousCaption !== undefined) {
+        item.caption = previousCaption;
+        item.captionEntities = source.messages[index].captionEntities;
+      }
       source.messages[index] = item;
       source.markModified('messages');
       await source.save();

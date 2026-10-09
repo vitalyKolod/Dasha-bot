@@ -1,3 +1,4 @@
+import type { MessageEntity } from 'grammy/types';
 import { Schema, model } from 'mongoose';
 
 export interface ContentMessage {
@@ -6,6 +7,8 @@ export interface ContentMessage {
   kind: string;
   text?: string;
   caption?: string;
+  entities?: MessageEntity[] | undefined;
+  captionEntities?: MessageEntity[] | undefined;
 }
 
 const messageSchema = new Schema<ContentMessage>(
@@ -15,6 +18,8 @@ const messageSchema = new Schema<ContentMessage>(
     kind: { type: String, required: true },
     text: String,
     caption: String,
+    entities: { type: [Schema.Types.Mixed], default: undefined },
+    captionEntities: { type: [Schema.Types.Mixed], default: undefined },
   },
   { _id: false },
 );
@@ -48,6 +53,7 @@ export interface BroadcastDraft {
   ownerId: string;
   messages: ContentMessage[];
   audience: string;
+  includeJoinButton: boolean;
   status: 'draft' | 'sending' | 'done';
   recipientIds: string[];
   cursor: number;
@@ -62,6 +68,7 @@ const broadcastSchema = new Schema<BroadcastDraft>(
     ownerId: { type: String, required: true, index: true },
     messages: { type: [messageSchema], default: [] },
     audience: { type: String, default: 'all' },
+    includeJoinButton: { type: Boolean, default: false },
     status: { type: String, enum: ['draft', 'sending', 'done'], default: 'draft' },
     recipientIds: { type: [String], default: [] },
     cursor: { type: Number, default: 0 },

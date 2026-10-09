@@ -75,9 +75,9 @@ describe('admin UI', () => {
       };
     }) as never);
     const { ctx, reply } = context(true, ['', 'started', '1']);
-    await handlers.get('^admin:users(?::(started|unpaid|active|expiring|expired):([0-9]+))?$')!(
-      ctx,
-    );
+    await handlers.get(
+      '^admin:users(?::(started|waitlist|unpaid|active|expiring|expired):([0-9]+))?$',
+    )!(ctx);
     expect(reply.mock.calls[0]?.[0]).toContain('страница 2/2');
   });
 });

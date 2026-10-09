@@ -25,6 +25,14 @@ const schema = z
     OFFER_VERSION: z.string().trim().min(1).default('2026-09-21'),
     START_IMAGE_FILE_ID: optionalString,
     START_VIDEO_FILE_ID: optionalString,
+    CHECKLIST_MODE: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    PRE_REGISTRATION: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
     PAYMENT_PROVIDER: z.enum(['mock', 'robokassa']).default('mock'),
     ROBOKASSA_MERCHANT_LOGIN: optionalString,
     ROBOKASSA_TEST_PASSWORD_1: optionalString,

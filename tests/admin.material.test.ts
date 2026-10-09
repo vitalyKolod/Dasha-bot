@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MaterialModel } from '../src/modules/admin/content.model.js';
 import { UserModel } from '../src/modules/users/user.model.js';
 import { deliverMaterial } from '../src/bot/handlers/admin/admin.handler.js';
+import type { InlineKeyboard } from 'grammy';
 import type { BotContext } from '../src/bot/context.js';
 
 const item = { chatId: 1, messageId: 7, kind: 'text', text: 'Актуальная версия' };
@@ -50,6 +51,25 @@ describe('material delivery', () => {
     expect(await deliverMaterial(ctx, 'm_test')).toBe(true);
     expect(sendMessage).toHaveBeenLastCalledWith(42, 'Исправленная версия');
     expect(update).toHaveBeenCalledTimes(4);
+  });
+  it('delivers a keyword material and offers consent instead of prices in pre-registration', async () => {
+    vi.spyOn(MaterialModel, 'findOne').mockResolvedValue({
+      published: true,
+      messages: [item],
+      inviteText: 'Оплатить',
+      inviteButton: 'Оплатить',
+    } as never);
+    vi.spyOn(UserModel, 'updateOne').mockResolvedValue({} as never);
+    const { ctx, reply, sendMessage } = fakeContext();
+    ctx.config = { PRE_REGISTRATION: true } as BotContext['config'];
+    await deliverMaterial(ctx, 'm_test');
+    expect(sendMessage).toHaveBeenCalledWith(42, 'Актуальная версия');
+    expect(reply.mock.calls[0]?.[0]).toContain('соглашаешься');
+    expect(
+      (
+        reply.mock.calls[0]?.[1] as { reply_markup: InlineKeyboard }
+      ).reply_markup.inline_keyboard.flat(),
+    ).toContainEqual(expect.objectContaining({ callback_data: 'waitlist' }));
   });
   it('rejects an inactive link and skips the purchase invitation for subscribers', async () => {
     vi.spyOn(MaterialModel, 'findOne')

@@ -5,10 +5,15 @@ import { productsKeyboard, productKeyboard } from '../ui/keyboards/products.keyb
 import { productMessage } from '../ui/messages/payment.message.js';
 import { insideMessage } from '../ui/messages/start.message.js';
 import { InlineKeyboard } from 'grammy';
+import { showWaitlist } from './waitlist.handler.js';
 import { renderScreen } from '../ui/renderScreen.js';
 
 export async function renderProductCheckout(ctx: BotContext, product: Product): Promise<void> {
   if (!ctx.from) return;
+  if (ctx.config.PRE_REGISTRATION) {
+    await showWaitlist(ctx);
+    return;
+  }
   const user = await ctx.services.users.touch(ctx.from);
   const active = await ctx.services.subscriptions.getActive(String(ctx.from.id));
   const { payment } = await ctx.services.payments.createCheckout({
@@ -28,12 +33,19 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
     await renderScreen(ctx, {
       text: insideMessage,
       keyboard: new InlineKeyboard()
-        .text('🍳 Вступить в клуб', 'products')
+        .text(
+          ctx.config.PRE_REGISTRATION ? '❤️ ЖДУ ОТКРЫТИЯ' : '🍳 Вступить в клуб',
+          ctx.config.PRE_REGISTRATION ? 'waitlist' : 'products',
+        )
         .row()
         .text('← Назад', 'menu'),
     });
   });
   bot.callbackQuery('products', async (ctx) => {
+    if (ctx.config.PRE_REGISTRATION) {
+      await showWaitlist(ctx);
+      return;
+    }
     const products = getActiveProducts();
     if (products.length === 1) {
       await renderProductCheckout(ctx, products[0]!);
