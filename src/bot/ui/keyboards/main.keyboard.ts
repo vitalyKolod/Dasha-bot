@@ -13,6 +13,7 @@ export function mainKeyboard(active: boolean, config: AppConfig, invite?: string
   if (active && !config.PRE_REGISTRATION)
     keyboard.text('✅ Моя подписка', 'subscription').text('💳 Продлить доступ', 'products').row();
   else keyboard.text('✨ Что внутри', 'inside').row();
+  keyboard.text('📄 Информация и условия', 'legal').row();
   if (config.SUPPORT_USERNAME)
     keyboard.url('💬 Задать вопрос', `https://t.me/${config.SUPPORT_USERNAME.replace(/^@/, '')}`);
   return keyboard;

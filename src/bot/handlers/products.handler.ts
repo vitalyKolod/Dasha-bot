@@ -10,6 +10,13 @@ import { renderScreen } from '../ui/renderScreen.js';
 
 export async function renderProductCheckout(ctx: BotContext, product: Product): Promise<void> {
   if (!ctx.from) return;
+  if (ctx.config.CHECKLIST_MODE) {
+    await renderScreen(ctx, {
+      text: productMessage(product, false),
+      keyboard: productKeyboard(product.id, null, ctx.config),
+    });
+    return;
+  }
   if (ctx.config.PRE_REGISTRATION) {
     await showWaitlist(ctx);
     return;
@@ -34,15 +41,19 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
       text: insideMessage,
       keyboard: new InlineKeyboard()
         .text(
-          ctx.config.PRE_REGISTRATION ? '❤️ ЖДУ ОТКРЫТИЯ' : '🍳 Вступить в клуб',
-          ctx.config.PRE_REGISTRATION ? 'waitlist' : 'products',
+          ctx.config.CHECKLIST_MODE
+            ? '🔍 Клуб и тарифы'
+            : ctx.config.PRE_REGISTRATION
+              ? '❤️ ЖДУ ОТКРЫТИЯ'
+              : '🍳 Вступить в клуб',
+          ctx.config.CHECKLIST_MODE || !ctx.config.PRE_REGISTRATION ? 'products' : 'waitlist',
         )
         .row()
         .text('← Назад', 'menu'),
     });
   });
   bot.callbackQuery('products', async (ctx) => {
-    if (ctx.config.PRE_REGISTRATION) {
+    if (ctx.config.PRE_REGISTRATION && !ctx.config.CHECKLIST_MODE) {
       await showWaitlist(ctx);
       return;
     }

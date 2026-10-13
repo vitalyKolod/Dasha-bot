@@ -1,4 +1,4 @@
-import type { Bot } from 'grammy';
+import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotContext } from '../context.js';
 import { checklistMessage } from '../ui/messages/checklist.message.js';
 
@@ -6,7 +6,13 @@ export async function sendChecklist(ctx: BotContext): Promise<void> {
   if (!ctx.from) return;
   await ctx.services.users.touch(ctx.from);
   if (ctx.callbackQuery) await ctx.answerCallbackQuery();
-  await ctx.reply(checklistMessage, { parse_mode: 'HTML' });
+  await ctx.reply(checklistMessage, {
+    parse_mode: 'HTML',
+    reply_markup: new InlineKeyboard()
+      .text('🔍 Клуб и тарифы', 'products')
+      .row()
+      .text('📄 Информация и условия', 'legal'),
+  });
 }
 
 export function registerChecklistHandlers(bot: Bot<BotContext>): void {

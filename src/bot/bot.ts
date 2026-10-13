@@ -13,6 +13,7 @@ import { registerProductHandlers } from './handlers/products.handler.js';
 import { registerPaymentHandlers } from './handlers/payment.handler.js';
 import { registerSubscriptionHandler } from './handlers/subscription.handler.js';
 import { registerSupportHandler } from './handlers/support.handler.js';
+import { registerLegalHandler } from './handlers/legal.handler.js';
 import { registerAdminHandlers } from './handlers/admin/admin.handler.js';
 
 export function createBot(
@@ -50,7 +51,12 @@ export function createBot(
       return;
     }
     if (ctx.callbackQuery) {
-      if (ctx.callbackQuery.data === 'checklist') await next();
+      if (
+        /^(?:checklist|menu|inside|products|product:[a-z0-9_-]+|terms:[a-z0-9_-]+|checkout:[a-z0-9_-]+|legal(?::[a-z0-9_-]+)?|legal-document:(?:offer|license|privacy|consent))$/.test(
+          ctx.callbackQuery.data ?? '',
+        )
+      )
+        await next();
       else await showMainMenu(ctx);
       return;
     }
@@ -71,6 +77,7 @@ export function createBot(
   registerPaymentHandlers(bot);
   registerSubscriptionHandler(bot);
   registerSupportHandler(bot);
+  registerLegalHandler(bot);
   registerAdminHandlers(bot);
   bot.catch(({ error, ctx }) => {
     if (error instanceof GrammyError)

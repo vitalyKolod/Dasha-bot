@@ -10,7 +10,14 @@ export async function buildWelcomeScreen(ctx: BotContext): Promise<Screen | null
   if (ctx.config.CHECKLIST_MODE)
     return {
       text: checklistWelcome,
-      keyboard: new InlineKeyboard().text('❄️ Получить чек-лист', 'checklist'),
+      keyboard: new InlineKeyboard()
+        .text('❄️ Получить чек-лист', 'checklist')
+        .row()
+        .text('🔍 Вступить в клуб', 'products')
+        .row()
+        .text('✨ Что внутри', 'inside')
+        .row()
+        .text('📄 Информация и условия', 'legal'),
     };
   const subscription = await ctx.services.subscriptions.getActive(String(ctx.from.id));
   const invite = subscription

@@ -13,8 +13,14 @@ export const productsKeyboard = (products: readonly Product[]) => {
   return keyboard.text('← Назад', 'menu');
 };
 
-export const productKeyboard = (productId: string, checkoutUrl: string, config: AppConfig) => {
-  const keyboard = new InlineKeyboard().url('💳 Перейти к оплате', checkoutUrl).row();
+export const productKeyboard = (
+  productId: string,
+  checkoutUrl: string | null,
+  config: AppConfig,
+) => {
+  const keyboard = new InlineKeyboard();
+  if (checkoutUrl) keyboard.url('💳 Перейти к оплате', checkoutUrl).row();
+  keyboard.text('📄 Информация и условия', `legal:${productId}`).row();
   if (config.OFFER_URL) keyboard.url('📄 Оферта', config.OFFER_URL);
   if (config.PRIVACY_URL) keyboard.url('🔐 Политика', config.PRIVACY_URL);
   return keyboard.row().text('← Назад', 'products').row().text('🏠 Главное меню', 'menu');
