@@ -2,12 +2,9 @@ import { InlineKeyboard, InputFile, type Bot } from 'grammy';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type { BotContext } from '../context.js';
-import { legal } from '../../config/legal.js';
-import { escapeHtml } from '../ui/helpers/escapeHtml.js';
+import { getActiveProducts, getProduct } from '../../config/products.js';
+import { formatMoney } from '../ui/helpers/formatMoney.js';
 import { renderScreen } from '../ui/renderScreen.js';
-
-const section = (title: string, value: string) =>
-  value.trim() ? `<b>${title}</b>\n${escapeHtml(value.trim())}` : null;
 
 export function registerLegalHandler(bot: Bot<BotContext>): void {
   const localDocumentsDir = fileURLToPath(new URL('../../../assets/legal/', import.meta.url));
@@ -41,7 +38,7 @@ export function registerLegalHandler(bot: Bot<BotContext>): void {
   });
   bot.callbackQuery(/^legal(?::([a-z0-9_-]+))?$/, async (ctx) => {
     const returnTo = ctx.match[1];
-    const sellerInn = ctx.config.LEGAL_SELLER_INN ?? legal.sellerInn;
+    const product = returnTo ? getProduct(returnTo) : undefined;
     const keyboard = new InlineKeyboard();
     keyboard.text('📄 Публичная оферта', 'legal-document:offer').row();
     keyboard.text('📄 Лицензионное соглашение', 'legal-document:license').row();
@@ -52,27 +49,17 @@ export function registerLegalHandler(bot: Bot<BotContext>): void {
     await renderScreen(ctx, {
       text: [
         '📄 <b>Информация и условия</b>',
-        section(
-          'Продавец и реквизиты',
-          [
-            ctx.config.LEGAL_SELLER_NAME ?? legal.sellerName,
-            sellerInn ? `ИНН исполнителя: ${sellerInn}` : '',
-            ctx.config.LEGAL_BANK_DETAILS ?? legal.bankDetails,
-          ]
-            .filter(Boolean)
-            .join('\n'),
-        ),
-        section('Контакты', ctx.config.LEGAL_CONTACTS ?? legal.contacts),
-        section('Оформление заказа и сроки', legal.order),
-        section('Оплата', legal.payment),
-        section('Предоставление доступа', legal.delivery),
-        section('Отказ от покупки', legal.cancellation),
-        section('Возврат средств: обращение', legal.refundRequest),
-        section('Возврат средств: рассмотрение и сроки', legal.refundProcessing),
-        section('Обработка персональных данных', legal.personalData),
-      ]
-        .filter(Boolean)
-        .join('\n\n'),
+        product
+          ? `<b>Тариф «${product.title}»</b>\nСтоимость: <b>${formatMoney(product.price)}</b>\nДоступ: <b>${product.durationDays === null ? 'навсегда' : `${product.durationDays} дней`}</b>`
+          : `<b>Тарифы</b>\n${getActiveProducts()
+              .map(
+                (item) =>
+                  `«${item.title}» — ${formatMoney(item.price)}, доступ ${item.durationDays === null ? 'навсегда' : `на ${item.durationDays} дней`}`,
+              )
+              .join('\n')}`,
+        'После оплаты ты получишь доступ в закрытую Telegram-группу клуба: ко всем рецептам, заготовкам, меню, спискам продуктов и новым материалам.',
+        'Подробные условия покупки и обработки данных — в документах ниже.',
+      ].join('\n\n'),
       keyboard,
     });
   });
