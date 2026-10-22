@@ -9,11 +9,12 @@ describe('Robokassa webhook', () => {
       password2: 'two',
       testMode: true,
     });
-    const signature = createHash('sha256').update('990.00:42:two').digest('hex');
+    const signature = createHash('sha256').update('990.00:42:two:Shp_mode=test').digest('hex');
     const event = provider.verifyWebhook({
       OutSum: '990.00',
       InvId: '42',
       SignatureValue: signature,
+      Shp_mode: 'test',
     });
     expect(event.amount).toBe(99000);
     expect(event.status).toBe('succeeded');
@@ -26,8 +27,47 @@ describe('Robokassa webhook', () => {
       testMode: true,
     });
     expect(() =>
-      provider.verifyWebhook({ OutSum: '990.00', InvId: '42', SignatureValue: '0'.repeat(64) }),
+      provider.verifyWebhook({
+        OutSum: '990.00',
+        InvId: '42',
+        SignatureValue: '0'.repeat(64),
+        Shp_mode: 'test',
+      }),
     ).toThrow('Invalid Robokassa signature');
+  });
+  it('rejects an amount change even with the original signature', () => {
+    const provider = new RobokassaPaymentProvider({
+      merchantLogin: 'shop',
+      password1: 'one',
+      password2: 'two',
+      testMode: true,
+    });
+    const signature = createHash('sha256').update('990.00:42:two:Shp_mode=test').digest('hex');
+    expect(() =>
+      provider.verifyWebhook({
+        OutSum: '991.00',
+        InvId: '42',
+        SignatureValue: signature,
+        Shp_mode: 'test',
+      }),
+    ).toThrow('Invalid Robokassa signature');
+  });
+  it('rejects a webhook from the wrong mode', () => {
+    const provider = new RobokassaPaymentProvider({
+      merchantLogin: 'shop',
+      password1: 'one',
+      password2: 'two',
+      testMode: true,
+    });
+    const signature = createHash('sha256').update('990.00:42:two:Shp_mode=live').digest('hex');
+    expect(() =>
+      provider.verifyWebhook({
+        OutSum: '990.00',
+        InvId: '42',
+        SignatureValue: signature,
+        Shp_mode: 'live',
+      }),
+    ).toThrow('Invalid Robokassa mode');
   });
 });
 
@@ -52,8 +92,9 @@ describe('Robokassa checkout', () => {
     expect(url.searchParams.get('InvId')).toBe('42');
     expect(checkout.providerPaymentId).toBe('42');
     expect(url.searchParams.get('IsTest')).toBe('1');
+    expect(url.searchParams.get('Shp_mode')).toBe('test');
     expect(url.searchParams.get('SignatureValue')).toBe(
-      createHash('sha256').update('shop:990.00:42:one').digest('hex'),
+      createHash('sha256').update('shop:990.00:42:one:Shp_mode=test').digest('hex'),
     );
   });
   it('accepts Robokassa six-decimal amount without floating point conversion', () => {
@@ -63,10 +104,14 @@ describe('Robokassa checkout', () => {
       password2: 'two',
       testMode: true,
     });
-    const signature = createHash('sha256').update('990.000000:42:two').digest('hex');
+    const signature = createHash('sha256').update('990.000000:42:two:Shp_mode=test').digest('hex');
     expect(
-      provider.verifyWebhook({ OutSum: '990.000000', InvId: '42', SignatureValue: signature })
-        .amount,
+      provider.verifyWebhook({
+        OutSum: '990.000000',
+        InvId: '42',
+        SignatureValue: signature,
+        Shp_mode: 'test',
+      }).amount,
     ).toBe(99000);
   });
 });

@@ -50,6 +50,49 @@ export class PaymentRepository {
   releaseProcessing(id: string) {
     return PaymentModel.updateOne({ _id: id }, { $unset: { processedAt: 1 } });
   }
+  claimDelivery(now = new Date()) {
+    return PaymentModel.findOneAndUpdate(
+      {
+        provider: 'robokassa',
+        status: 'succeeded',
+        processedAt: { $exists: true },
+        $or: [
+          { deliveryStatus: 'pending' },
+          { deliveryStatus: 'retry', nextDeliveryAttemptAt: { $lte: now } },
+          { deliveryStatus: 'sending', deliveryLeaseUntil: { $lte: now } },
+        ],
+      },
+      {
+        $set: { deliveryStatus: 'sending', deliveryLeaseUntil: new Date(now.getTime() + 120_000) },
+        $inc: { deliveryAttempts: 1 },
+      },
+      { new: true, sort: { createdAt: 1 } },
+    );
+  }
+  markDelivered(id: string) {
+    return PaymentModel.updateOne(
+      { _id: id, deliveryStatus: 'sending' },
+      {
+        $set: { deliveryStatus: 'sent', deliveredAt: new Date() },
+        $unset: { deliveryLeaseUntil: 1 },
+      },
+    );
+  }
+  retryDelivery(id: string, attempts: number) {
+    const delay = Math.min(60_000 * 2 ** Math.min(attempts - 1, 6), 3_600_000);
+    return PaymentModel.updateOne(
+      { _id: id, deliveryStatus: 'sending' },
+      {
+        $set: { deliveryStatus: 'retry', nextDeliveryAttemptAt: new Date(Date.now() + delay) },
+        $unset: { deliveryLeaseUntil: 1 },
+      },
+    );
+  }
+  listUnprocessedSucceeded(limit = 20) {
+    return PaymentModel.find({ status: 'succeeded', processedAt: { $exists: false } })
+      .sort({ createdAt: 1 })
+      .limit(limit);
+  }
   countSucceeded() {
     return PaymentModel.countDocuments({ status: 'succeeded' });
   }

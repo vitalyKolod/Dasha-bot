@@ -22,8 +22,9 @@ export class RobokassaPaymentProvider implements PaymentProvider {
   constructor(private readonly options: RobokassaOptions) {}
   createCheckout(input: CreateCheckoutInput): Promise<CreateCheckoutResult> {
     const amount = formatAmount(input.amount);
+    const mode = this.options.testMode ? 'test' : 'live';
     const signature = sha256(
-      `${this.options.merchantLogin}:${amount}:${input.invoiceId}:${this.options.password1}`,
+      `${this.options.merchantLogin}:${amount}:${input.invoiceId}:${this.options.password1}:Shp_mode=${mode}`,
     );
     const url = new URL('https://auth.robokassa.ru/Merchant/Index.aspx');
     url.search = new URLSearchParams({
@@ -32,6 +33,7 @@ export class RobokassaPaymentProvider implements PaymentProvider {
       InvId: input.invoiceId,
       Description: input.description.slice(0, 100),
       SignatureValue: signature,
+      Shp_mode: mode,
       Culture: 'ru',
       Encoding: 'utf-8',
       ...(this.options.testMode ? { IsTest: '1' } : {}),
@@ -46,13 +48,27 @@ export class RobokassaPaymentProvider implements PaymentProvider {
     return Promise.resolve('pending');
   }
   verifyWebhook(payload: WebhookPayload): VerifiedWebhookEvent {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+      throw new AppError('Invalid Robokassa webhook', 400, 'INVALID_WEBHOOK');
     const amountText = payload.OutSum ?? payload.outSum;
     const invoiceId = payload.InvId ?? payload.InvID ?? payload.invoiceId;
     const signature = payload.SignatureValue ?? payload.signatureValue;
-    if (!amountText || !invoiceId || !signature)
+    if (
+      typeof amountText !== 'string' ||
+      typeof invoiceId !== 'string' ||
+      typeof signature !== 'string' ||
+      !/^[1-9]\d{0,9}$/.test(invoiceId)
+    )
       throw new AppError('Invalid Robokassa webhook', 400, 'INVALID_WEBHOOK');
+    if (payload.Shp_mode !== (this.options.testMode ? 'test' : 'live'))
+      throw new AppError('Invalid Robokassa mode', 400, 'INVALID_MODE');
     const shp = Object.entries(payload)
-      .filter(([key, value]) => key.toLowerCase().startsWith('shp_') && value !== undefined)
+      .filter(([key]) => key.toLowerCase().startsWith('shp_'))
+      .map(([key, value]) => {
+        if (typeof value !== 'string')
+          throw new AppError('Invalid Robokassa webhook', 400, 'INVALID_WEBHOOK');
+        return [key, value] as const;
+      })
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, value]) => `${key}=${value}`);
     const signatureBase = [amountText, invoiceId, this.options.password2, ...shp].join(':');

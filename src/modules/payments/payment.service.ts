@@ -1,6 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Logger } from 'pino';
 import type { Types } from 'mongoose';
+import mongoose from 'mongoose';
 import type { AppConfig } from '../../config/env.js';
 import { getProduct } from '../../config/products.js';
 import { AppError } from '../../shared/errors/AppError.js';
@@ -10,6 +11,7 @@ import { ReturnTokenService } from './returnToken.service.js';
 import { SubscriptionService } from '../subscriptions/subscription.service.js';
 import type { VerifiedWebhookEvent } from './payment.types.js';
 import { moneyEquals } from './payment.logic.js';
+import { PaymentModel } from './payment.model.js';
 
 export class PaymentService {
   readonly returnTokens: ReturnTokenService;
@@ -67,7 +69,7 @@ export class PaymentService {
       returnUrl:
         this.provider.name === 'mock'
           ? `${this.config.APP_BASE_URL}/payment/return?token=${encodeURIComponent(token)}`
-          : `${this.config.PUBLIC_BASE_URL}/api/payments/robokassa/success`,
+          : `${this.config.PUBLIC_BASE_URL}/payments/robokassa/success`,
     });
     const updated = await this.payments.setCheckout(
       String(payment._id),
@@ -100,24 +102,31 @@ export class PaymentService {
     if (event.status !== 'succeeded')
       return this.payments.setStatus(String(payment._id), event.status, event.metadata);
     if (payment.status === 'succeeded' && payment.processedAt) return null;
-    await this.payments.setStatus(String(payment._id), 'succeeded', event.metadata);
-    return this.processSuccess(String(payment._id));
+    return this.processSuccess(String(payment._id), event.metadata);
   }
-  async processSuccess(paymentId: string) {
-    const claimed = await this.payments.claimForProcessing(paymentId);
-    if (!claimed) return null;
-    try {
-      const subscription = await this.subscriptions.activate(claimed);
-      this.logger.info({ payment: claimed.publicId }, '✅ PAYMENT SUCCEEDED');
+  async processSuccess(paymentId: string, metadata?: Record<string, unknown>) {
+    const result = await mongoose.connection.transaction(async (session) => {
+      const payment = await PaymentModel.findById(paymentId).session(session).orFail();
+      if (payment.processedAt) return null;
+      if (!['created', 'pending', 'succeeded'].includes(payment.status))
+        throw new AppError('Payment cannot be confirmed', 409, 'INVALID_PAYMENT_STATUS');
+      const subscription = await this.subscriptions.activate(payment, session);
+      payment.status = 'succeeded';
+      payment.processedAt = new Date();
+      payment.deliveryStatus = 'pending';
+      payment.deliveryAttempts = 0;
+      if (metadata) payment.providerMetadata = metadata;
+      await payment.save({ session });
+      return { payment, subscription };
+    });
+    if (result) {
+      this.logger.info({ payment: result.payment.publicId }, '✅ PAYMENT SUCCEEDED');
       this.logger.info(
-        { telegramId: claimed.telegramId, expiresAt: subscription.expiresAt },
+        { telegramId: result.payment.telegramId, expiresAt: result.subscription.expiresAt },
         '✅ SUBSCRIPTION ACTIVATED',
       );
-      return { payment: claimed, subscription };
-    } catch (error) {
-      await this.payments.releaseProcessing(paymentId);
-      throw error;
     }
+    return result;
   }
   async findByToken(token: string) {
     const record = await this.returnTokens.resolve(token);

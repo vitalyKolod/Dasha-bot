@@ -1,7 +1,8 @@
+import type { ClientSession } from 'mongoose';
 import { SubscriptionModel } from './subscription.model.js';
 export class SubscriptionRepository {
-  findByTelegramId(telegramId: string) {
-    return SubscriptionModel.findOne({ telegramId });
+  findByTelegramId(telegramId: string, session?: ClientSession) {
+    return SubscriptionModel.findOne({ telegramId }).session(session ?? null);
   }
   findActive(telegramId: string, now = new Date()) {
     return SubscriptionModel.findOne({
@@ -10,21 +11,31 @@ export class SubscriptionRepository {
       $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
     });
   }
-  upsert(data: {
-    userId: unknown;
-    telegramId: string;
-    productId: string;
-    startedAt: Date;
-    expiresAt: Date | null;
-    lastPaymentId: unknown;
-  }) {
+  upsert(
+    data: {
+      userId: unknown;
+      telegramId: string;
+      productId: string;
+      startedAt: Date;
+      expiresAt: Date | null;
+      lastPaymentId: unknown;
+    },
+    session?: ClientSession,
+  ) {
     return SubscriptionModel.findOneAndUpdate(
       { telegramId: data.telegramId },
       {
         $set: { ...data, status: 'active' },
-        $unset: { reminder3DaysSentAt: 1, reminder1DaySentAt: 1, expirationNotificationSentAt: 1 },
+        $unset: {
+          reminder3DaysSentAt: 1,
+          reminder1DaySentAt: 1,
+          expirationNotificationSentAt: 1,
+          inviteLink: 1,
+          inviteLinkExpiresAt: 1,
+          accessGrantedAt: 1,
+        },
       },
-      { upsert: true, new: true },
+      { upsert: true, new: true, ...(session ? { session } : {}) },
     ).orFail();
   }
   countActive(now = new Date()) {

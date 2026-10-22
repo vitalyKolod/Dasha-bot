@@ -6,6 +6,7 @@ import { createPaymentProvider } from './modules/payments/paymentProvider.factor
 import { UserService } from './modules/users/user.service.js';
 import { SubscriptionService } from './modules/subscriptions/subscription.service.js';
 import { PaymentService } from './modules/payments/payment.service.js';
+import { PaymentDeliveryService } from './modules/payments/paymentDelivery.service.js';
 import { createBot } from './bot/bot.js';
 import { resumeBroadcasts } from './bot/handlers/admin/admin.handler.js';
 import { createAccessService } from './modules/access/access.service.js';
@@ -45,6 +46,7 @@ export async function startApplication() {
   const subscriptions = new SubscriptionService();
   const access = createAccessService(bot, config, logger);
   const payments = new PaymentService(provider, config, logger);
+  const delivery = new PaymentDeliveryService(bot, access, logger);
   serviceHolder.value = { users: new UserService(), subscriptions, payments, access };
   if (config.PRIVATE_CLUB_CHAT_ID) {
     try {
@@ -54,7 +56,7 @@ export async function startApplication() {
       logger.warn({ err: error }, '⚠️ Cannot verify club permissions');
     }
   }
-  const server = await createHttpServer(config, logger, provider, payments, access, bot);
+  const server = await createHttpServer(config, logger, provider, payments, delivery);
   const address = await server.listen({ port: config.PORT, host: config.HTTP_HOST });
   logger.info({ address }, '✅ HTTP server started');
   const reminders = new ReminderScheduler(
@@ -63,6 +65,7 @@ export async function startApplication() {
     logger,
   );
   reminders.start();
+  delivery.start();
   await resumeBroadcasts(bot, logger);
   void bot.start({
     onStart: ({ username }) =>
@@ -75,6 +78,7 @@ export async function startApplication() {
     stopping = true;
     logger.info({ signal }, 'Graceful shutdown started');
     await reminders.stop();
+    delivery.stop();
     await bot.stop();
     await server.close();
     await mongoose.disconnect();

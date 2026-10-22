@@ -20,6 +20,11 @@ export interface Payment {
   termsAcceptedAt: Date;
   offerVersion: string;
   processedAt?: Date;
+  deliveryStatus?: 'pending' | 'sending' | 'retry' | 'sent';
+  deliveryAttempts?: number;
+  deliveryLeaseUntil?: Date;
+  nextDeliveryAttemptAt?: Date;
+  deliveredAt?: Date;
   providerMetadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -47,6 +52,11 @@ const schema = new Schema<Payment>(
     termsAcceptedAt: { type: Date, required: true },
     offerVersion: { type: String, required: true },
     processedAt: Date,
+    deliveryStatus: { type: String, enum: ['pending', 'sending', 'retry', 'sent'] },
+    deliveryAttempts: Number,
+    deliveryLeaseUntil: Date,
+    nextDeliveryAttemptAt: Date,
+    deliveredAt: Date,
     providerMetadata: Schema.Types.Mixed,
   },
   { timestamps: true },
@@ -55,5 +65,6 @@ schema.index({ provider: 1, providerPaymentId: 1 }, { unique: true, sparse: true
 schema.index({ provider: 1, providerInvoiceId: 1 }, { unique: true, sparse: true });
 schema.index({ status: 1 });
 schema.index({ telegramId: 1, createdAt: -1 });
+schema.index({ deliveryStatus: 1, nextDeliveryAttemptAt: 1 });
 export type PaymentDocument = HydratedDocument<Payment>;
 export const PaymentModel = model<Payment>('Payment', schema);

@@ -10,14 +10,18 @@ import { renderScreen } from '../ui/renderScreen.js';
 
 export async function renderProductCheckout(ctx: BotContext, product: Product): Promise<void> {
   if (!ctx.from) return;
-  if (ctx.config.CHECKLIST_MODE) {
+  const testAdmin =
+    ctx.config.PAYMENT_PROVIDER === 'robokassa' &&
+    ctx.config.ROBOKASSA_TEST_MODE &&
+    ctx.config.adminIds.has(String(ctx.from.id));
+  if (ctx.config.CHECKLIST_MODE && !testAdmin) {
     await renderScreen(ctx, {
       text: productMessage(product, false),
       keyboard: productKeyboard(product.id, null, ctx.config),
     });
     return;
   }
-  if (ctx.config.PRE_REGISTRATION) {
+  if (ctx.config.PRE_REGISTRATION && !testAdmin) {
     await showWaitlist(ctx);
     return;
   }
@@ -36,6 +40,18 @@ export async function renderProductCheckout(ctx: BotContext, product: Product): 
 }
 
 export function registerProductHandlers(bot: Bot<BotContext>): void {
+  bot.command('testpayment', async (ctx) => {
+    if (
+      !ctx.from ||
+      ctx.config.PAYMENT_PROVIDER !== 'robokassa' ||
+      !ctx.config.ROBOKASSA_TEST_MODE ||
+      !ctx.config.adminIds.has(String(ctx.from.id))
+    )
+      return;
+    await ctx.reply('🧪 Выберите тариф для тестовой оплаты:', {
+      reply_markup: productsKeyboard(getActiveProducts()),
+    });
+  });
   bot.callbackQuery('inside', async (ctx) => {
     await renderScreen(ctx, {
       text: insideMessage,
@@ -53,7 +69,16 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
     });
   });
   bot.callbackQuery('products', async (ctx) => {
-    if (ctx.config.PRE_REGISTRATION && !ctx.config.CHECKLIST_MODE) {
+    if (
+      ctx.config.PRE_REGISTRATION &&
+      !ctx.config.CHECKLIST_MODE &&
+      !(
+        ctx.config.PAYMENT_PROVIDER === 'robokassa' &&
+        ctx.config.ROBOKASSA_TEST_MODE &&
+        ctx.from &&
+        ctx.config.adminIds.has(String(ctx.from.id))
+      )
+    ) {
       await showWaitlist(ctx);
       return;
     }

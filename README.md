@@ -102,15 +102,15 @@ ROBOKASSA_HASH_ALGORITHM=SHA256
 
 В кабинете Robokassa выберите SHA256 и укажите:
 
-- Result URL: `https://YOUR_PUBLIC_HOST/api/payments/robokassa/result`, POST;
-- Success URL: `https://YOUR_PUBLIC_HOST/api/payments/robokassa/success`, GET;
-- Fail URL: `https://YOUR_PUBLIC_HOST/api/payments/robokassa/fail`, GET.
+- Result URL: `https://pay.dashamenu.ru/payments/robokassa/result`, POST;
+- Success URL: `https://pay.dashamenu.ru/payments/robokassa/success`, GET;
+- Fail URL: `https://pay.dashamenu.ru/payments/robokassa/fail`, GET.
 
-Текущий тестовый адрес VPS: `https://dasha.135-106-217-130.sslip.io`. Подставьте его вместо `https://YOUR_PUBLIC_HOST` в трёх URL кабинета Robokassa.
+Установите `PUBLIC_BASE_URL=https://pay.dashamenu.ru`. Для тестового режима нужны `ROBOKASSA_TEST_PASSWORD_1` и `ROBOKASSA_TEST_PASSWORD_2`; для реального — `ROBOKASSA_PASSWORD_1` и `ROBOKASSA_PASSWORD_2`. Храните их только в серверном `.env` с правами 600. MongoDB должна работать как replica set для атомарного подтверждения платежа и продления подписки.
 
-ResultURL сверяет подпись Паролем №2 и сумму с заказом. Только он переводит платёж в `succeeded`, активирует подписку и отправляет сообщение в Telegram. Повторное уведомление отвечает `OK{InvId}` без повторной выдачи. SuccessURL и FailURL только возвращают пользователя в бот. При тестовой оплате checkout подписывается тестовым Паролем №1 и содержит `IsTest=1`. Для будущего реального режима предусмотрены `ROBOKASSA_PASSWORD_1` и `ROBOKASSA_PASSWORD_2`; они нужны только при `ROBOKASSA_TEST_MODE=false`.
+ResultURL сверяет подпись Паролем №2, режим и сумму с заказом. Подтверждение платежа и продление подписки фиксируются в одной транзакции, после чего задача выдачи приглашения повторяется при сбоях Telegram. Повторное уведомление отвечает `OK{InvId}` без повторного продления. SuccessURL и FailURL показывают страницы возврата в бот и не подтверждают оплату. При тестовой оплате checkout подписывается тестовым Паролем №1 и содержит `IsTest=1`. Для реального режима нужны `ROBOKASSA_PASSWORD_1` и `ROBOKASSA_PASSWORD_2`.
 
-После настройки откройте бота, выберите тариф, нажмите «💳 Оплатить» и проведите тестовый платёж. Сервер должен быть доступен Robokassa по `PUBLIC_BASE_URL`.
+После настройки администратор из `ADMIN_IDS` может отправить боту `/testpayment`, выбрать тариф и провести тестовый платёж. Команда доступна только при `PAYMENT_PROVIDER=robokassa` и `ROBOKASSA_TEST_MODE=true`; для остальных пользователей режимы предзаписи и чек-листа продолжают блокировать оплату. Сервер должен быть доступен Robokassa по `PUBLIC_BASE_URL`.
 
 ## Проверка платежа
 
