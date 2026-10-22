@@ -9,10 +9,12 @@ export interface Subscription {
   expiresAt: Date | null;
   lastPaymentId: Types.ObjectId;
   accessGrantedAt?: Date;
+  accessRemovedAt?: Date;
   reminder3DaysSentAt?: Date;
   reminder1DaySentAt?: Date;
   expirationNotificationSentAt?: Date;
   inviteLink?: string;
+  inviteRequiresApproval?: boolean;
   inviteLinkExpiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -27,10 +29,12 @@ const schema = new Schema<Subscription>(
     expiresAt: { type: Date, default: null },
     lastPaymentId: { type: Schema.Types.ObjectId, required: true, ref: 'Payment' },
     accessGrantedAt: Date,
+    accessRemovedAt: Date,
     reminder3DaysSentAt: Date,
     reminder1DaySentAt: Date,
     expirationNotificationSentAt: Date,
     inviteLink: String,
+    inviteRequiresApproval: Boolean,
     inviteLinkExpiresAt: Date,
   },
   { timestamps: true },

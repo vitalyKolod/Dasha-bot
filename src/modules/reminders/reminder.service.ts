@@ -25,10 +25,9 @@ export class ReminderService {
       '💛 <b>Напоминание</b>\n\nЗавтра заканчивается твой доступ в клуб.',
     );
     for (const candidate of await this.subscriptions.listDueForExpiration(now)) {
-      const expired = await this.subscriptions.expireAtomically(String(candidate._id));
+      const expired = await this.subscriptions.expireAtomically(String(candidate._id), now);
       if (!expired) continue;
       this.logger.info({ telegramId: expired.telegramId }, '🔒 SUBSCRIPTION EXPIRED');
-      await this.access.removeFromClub(expired.telegramId);
       const claimed = await this.subscriptions.claimReminder(
         String(expired._id),
         'expirationNotificationSentAt',
@@ -38,6 +37,10 @@ export class ReminderService {
           expired.telegramId,
           '🔒 <b>Доступ завершён</b>\n\nСрок подписки закончился. После продления доступ автоматически вернётся.',
         );
+    }
+    for (const expired of await this.subscriptions.listExpiredNeedingRemoval()) {
+      if (await this.access.removeFromClub(expired.telegramId))
+        await this.subscriptions.markAccessRemoved(String(expired._id));
     }
   }
   private async sendWindow(

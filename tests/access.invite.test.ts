@@ -17,6 +17,7 @@ describe('invitation reuse', () => {
     const subscription = {
       telegramId: '123',
       inviteLink: 'https://t.me/+existing',
+      inviteRequiresApproval: true,
       inviteLinkExpiresAt: new Date(Date.now() + 3_600_000),
       save,
     } as unknown as SubscriptionDocument;

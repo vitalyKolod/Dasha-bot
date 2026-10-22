@@ -15,6 +15,7 @@ import { registerSubscriptionHandler } from './handlers/subscription.handler.js'
 import { registerSupportHandler } from './handlers/support.handler.js';
 import { registerLegalHandler } from './handlers/legal.handler.js';
 import { registerAdminHandlers } from './handlers/admin/admin.handler.js';
+import { registerAccessHandlers } from './handlers/access.handler.js';
 
 export function createBot(
   config: AppConfig,
@@ -46,6 +47,10 @@ export function createBot(
     await next();
   });
   bot.use(async (ctx, next) => {
+    if (ctx.chatJoinRequest) {
+      await next();
+      return;
+    }
     if (!config.CHECKLIST_MODE || (ctx.from && config.adminIds.has(String(ctx.from.id)))) {
       await next();
       return;
@@ -79,6 +84,7 @@ export function createBot(
   registerSupportHandler(bot);
   registerLegalHandler(bot);
   registerAdminHandlers(bot);
+  registerAccessHandlers(bot);
   bot.catch(({ error, ctx }) => {
     if (error instanceof GrammyError)
       logger.error(

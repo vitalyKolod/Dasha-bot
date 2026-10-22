@@ -31,8 +31,10 @@ export class SubscriptionRepository {
           reminder1DaySentAt: 1,
           expirationNotificationSentAt: 1,
           inviteLink: 1,
+          inviteRequiresApproval: 1,
           inviteLinkExpiresAt: 1,
           accessGrantedAt: 1,
+          accessRemovedAt: 1,
         },
       },
       { upsert: true, new: true, ...(session ? { session } : {}) },
@@ -47,9 +49,29 @@ export class SubscriptionRepository {
   listDueForExpiration(now: Date) {
     return SubscriptionModel.find({ status: 'active', expiresAt: { $ne: null, $lte: now } });
   }
-  expireAtomically(id: string) {
+  listExpiredNeedingRemoval(limit = 50) {
+    return SubscriptionModel.find({ status: 'expired', accessRemovedAt: { $exists: false } })
+      .sort({ expiresAt: 1 })
+      .limit(limit);
+  }
+  markAccessRemoved(id: string) {
+    return SubscriptionModel.updateOne(
+      { _id: id, status: 'expired' },
+      { $set: { accessRemovedAt: new Date() } },
+    );
+  }
+  clearInvite(telegramId: string, link: string) {
+    return SubscriptionModel.updateOne(
+      { telegramId, inviteLink: link },
+      {
+        $set: { accessGrantedAt: new Date() },
+        $unset: { inviteLink: 1, inviteLinkExpiresAt: 1, inviteRequiresApproval: 1 },
+      },
+    );
+  }
+  expireAtomically(id: string, now = new Date()) {
     return SubscriptionModel.findOneAndUpdate(
-      { _id: id, status: 'active' },
+      { _id: id, status: 'active', expiresAt: { $lte: now } },
       { $set: { status: 'expired' } },
       { new: true },
     );
