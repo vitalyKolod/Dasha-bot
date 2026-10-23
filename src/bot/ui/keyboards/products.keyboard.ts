@@ -3,11 +3,11 @@ import type { Product } from '../../../config/products.js';
 import type { AppConfig } from '../../../config/env.js';
 import { formatMoney } from '../helpers/formatMoney.js';
 
-export const productsKeyboard = (products: readonly Product[]) => {
+export const productsKeyboard = (products: readonly Product[], callbackPrefix = 'product') => {
   const keyboard = new InlineKeyboard();
   products.forEach((product) =>
     keyboard
-      .text(`${product.title} — ${formatMoney(product.price)}`, `product:${product.id}`)
+      .text(`${product.title} — ${formatMoney(product.price)}`, `${callbackPrefix}:${product.id}`)
       .row(),
   );
   return keyboard.text('← Назад', 'menu');

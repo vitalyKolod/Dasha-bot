@@ -40,6 +40,7 @@ export function createBot(
   const bot = client
     ? new Bot<BotContext>(config.BOT_TOKEN, { client })
     : new Bot<BotContext>(config.BOT_TOKEN);
+  const testPaymentsOpen = config.PAYMENT_PROVIDER === 'robokassa' && config.ROBOKASSA_TEST_MODE;
   bot.use(async (ctx, next) => {
     ctx.config = config;
     ctx.logger = logger;
@@ -56,16 +57,22 @@ export function createBot(
       return;
     }
     if (ctx.callbackQuery) {
+      const data = ctx.callbackQuery.data ?? '';
       if (
         /^(?:checklist|menu|inside|products|product:[a-z0-9_-]+|terms:[a-z0-9_-]+|checkout:[a-z0-9_-]+|legal(?::[a-z0-9_-]+)?|legal-document:(?:offer|license|privacy|consent))$/.test(
-          ctx.callbackQuery.data ?? '',
-        )
+          data,
+        ) ||
+        (testPaymentsOpen && /^testpayment:[a-z0-9_-]+$/.test(data))
       )
         await next();
       else await showMainMenu(ctx);
       return;
     }
-    if (ctx.message?.text && /^\/start(?:@\w+)?(?:\s|$)/.test(ctx.message.text)) {
+    if (
+      ctx.message?.text &&
+      (/^\/start(?:@\w+)?(?:\s|$)/.test(ctx.message.text) ||
+        (testPaymentsOpen && /^\/testpayment(?:@\w+)?(?:\s|$)/.test(ctx.message.text)))
+    ) {
       await next();
       return;
     }

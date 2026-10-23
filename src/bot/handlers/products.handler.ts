@@ -8,20 +8,24 @@ import { InlineKeyboard } from 'grammy';
 import { showWaitlist } from './waitlist.handler.js';
 import { renderScreen } from '../ui/renderScreen.js';
 
-export async function renderProductCheckout(ctx: BotContext, product: Product): Promise<void> {
+export async function renderProductCheckout(
+  ctx: BotContext,
+  product: Product,
+  testCheckout = false,
+): Promise<void> {
   if (!ctx.from) return;
-  const testAdmin =
+  const testAccess =
     ctx.config.PAYMENT_PROVIDER === 'robokassa' &&
     ctx.config.ROBOKASSA_TEST_MODE &&
-    ctx.config.adminIds.has(String(ctx.from.id));
-  if (ctx.config.CHECKLIST_MODE && !testAdmin) {
+    (testCheckout || ctx.config.adminIds.has(String(ctx.from.id)));
+  if (ctx.config.CHECKLIST_MODE && !testAccess) {
     await renderScreen(ctx, {
       text: productMessage(product, false),
       keyboard: productKeyboard(product.id, null, ctx.config),
     });
     return;
   }
-  if (ctx.config.PRE_REGISTRATION && !testAdmin) {
+  if (ctx.config.PRE_REGISTRATION && !testAccess) {
     await showWaitlist(ctx);
     return;
   }
@@ -41,16 +45,17 @@ export async function renderProductCheckout(ctx: BotContext, product: Product): 
 
 export function registerProductHandlers(bot: Bot<BotContext>): void {
   bot.command('testpayment', async (ctx) => {
-    if (
-      !ctx.from ||
-      ctx.config.PAYMENT_PROVIDER !== 'robokassa' ||
-      !ctx.config.ROBOKASSA_TEST_MODE ||
-      !ctx.config.adminIds.has(String(ctx.from.id))
-    )
+    if (!ctx.from || ctx.config.PAYMENT_PROVIDER !== 'robokassa' || !ctx.config.ROBOKASSA_TEST_MODE)
       return;
-    await ctx.reply('🧪 Выберите тариф для тестовой оплаты:', {
-      reply_markup: productsKeyboard(getActiveProducts()),
+    await ctx.reply('🧪 Тестовый платёж: деньги не списываются. Выберите тариф:', {
+      reply_markup: productsKeyboard(getActiveProducts(), 'testpayment'),
     });
+  });
+  bot.callbackQuery(/^testpayment:([a-z0-9_-]+)$/, async (ctx) => {
+    if (ctx.config.PAYMENT_PROVIDER !== 'robokassa' || !ctx.config.ROBOKASSA_TEST_MODE) return;
+    const product = getProduct(ctx.match[1]!);
+    if (!product) return;
+    await renderProductCheckout(ctx, product, true);
   });
   bot.callbackQuery('inside', async (ctx) => {
     await renderScreen(ctx, {
