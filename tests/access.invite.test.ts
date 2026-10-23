@@ -97,7 +97,7 @@ describe('invitation reuse', () => {
       expect.anything(),
     );
   });
-  it('replaces a reported bad link and revokes the previous one', async () => {
+  it('keeps earlier issued links valid when refreshing the invitation', async () => {
     const subscription = {
       telegramId: '123',
       inviteLink: 'https://t.me/+old',
@@ -120,6 +120,10 @@ describe('invitation reuse', () => {
     await expect(access.getOrCreateValidInvite(subscription, true)).resolves.toBe(
       'https://t.me/+new',
     );
-    expect(revokeChatInviteLink).toHaveBeenCalledWith('-1004334407084', 'https://t.me/+old');
+    expect(revokeChatInviteLink).not.toHaveBeenCalled();
+    expect(subscription.inviteLinks?.map((item) => item.url)).toEqual([
+      'https://t.me/+old',
+      'https://t.me/+new',
+    ]);
   });
 });

@@ -12,17 +12,27 @@ export function registerAccessHandlers(
     const telegramId = String(request.from.id);
     const link = request.invite_link?.invite_link;
     const active = await ctx.services.subscriptions.getActive(telegramId);
-    if (!link || !active || active.inviteLink !== link) {
+    const assigned =
+      !!link &&
+      !!active &&
+      (active.inviteLink === link ||
+        (active.inviteLinks ?? []).some(
+          (item) => item.url === link && item.expiresAt > new Date(),
+        ));
+    if (!assigned) {
       await ctx.api.declineChatJoinRequest(request.chat.id, request.from.id);
       ctx.logger.warn({ telegramId }, 'Unrecognized club join request declined');
       return;
     }
     await ctx.api.approveChatJoinRequest(request.chat.id, request.from.id);
-    await subscriptions.clearInvite(telegramId, link);
-    try {
-      await ctx.api.revokeChatInviteLink(request.chat.id, link);
-    } catch {
-      ctx.logger.warn({ telegramId }, 'Used invite could not be revoked');
+    const consumed = await subscriptions.clearInvite(telegramId, link);
+    const issuedLinks = new Set([link, ...(consumed?.inviteLinks ?? []).map((item) => item.url)]);
+    for (const issuedLink of issuedLinks) {
+      try {
+        await ctx.api.revokeChatInviteLink(request.chat.id, issuedLink);
+      } catch {
+        ctx.logger.warn({ telegramId }, 'Used invite could not be revoked');
+      }
     }
     try {
       const keyboard = new InlineKeyboard();

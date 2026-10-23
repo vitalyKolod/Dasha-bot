@@ -58,11 +58,16 @@ export class SubscriptionRepository {
     );
   }
   clearInvite(telegramId: string, link: string) {
-    return SubscriptionModel.updateOne(
-      { telegramId, inviteLink: link },
+    return SubscriptionModel.findOneAndUpdate(
+      { telegramId, $or: [{ inviteLink: link }, { 'inviteLinks.url': link }] },
       {
         $set: { accessGrantedAt: new Date() },
-        $unset: { inviteLink: 1, inviteLinkExpiresAt: 1, inviteRequiresApproval: 1 },
+        $unset: {
+          inviteLink: 1,
+          inviteLinkExpiresAt: 1,
+          inviteRequiresApproval: 1,
+          inviteLinks: 1,
+        },
       },
     );
   }

@@ -68,7 +68,17 @@ export class AccessService {
       current.inviteLinkExpiresAt > new Date(Date.now() + 60_000)
     )
       return current.inviteLink;
-    const previousLink = current.inviteLink;
+    const now = new Date();
+    const previousLinks = (current.inviteLinks ?? []).filter((item) => item.expiresAt > now);
+    if (
+      current.inviteLink &&
+      current.inviteRequiresApproval &&
+      current.inviteLinkExpiresAt &&
+      current.inviteLinkExpiresAt > now &&
+      !previousLinks.some((item) => item.url === current.inviteLink)
+    ) {
+      previousLinks.push({ url: current.inviteLink, expiresAt: current.inviteLinkExpiresAt });
+    }
     const expiresAt = new Date(Date.now() + this.config.INVITE_LINK_TTL_HOURS * 3_600_000);
     const link = await this.api.createChatInviteLink(
       this.config.PRIVATE_CLUB_CHAT_ID!,
@@ -82,21 +92,12 @@ export class AccessService {
     current.inviteLink = link.invite_link;
     current.inviteRequiresApproval = true;
     current.inviteLinkExpiresAt = expiresAt;
+    current.inviteLinks = [...previousLinks, { url: link.invite_link, expiresAt }];
     try {
       await current.save();
     } catch (error) {
       await this.api.revokeChatInviteLink(this.config.PRIVATE_CLUB_CHAT_ID!, link.invite_link);
       throw error;
-    }
-    if (previousLink) {
-      try {
-        await this.api.revokeChatInviteLink(this.config.PRIVATE_CLUB_CHAT_ID!, previousLink);
-      } catch {
-        this.logger.warn(
-          { telegramId: current.telegramId },
-          'Previous invite could not be revoked',
-        );
-      }
     }
     this.logger.info({ telegramId: current.telegramId }, '🔗 INVITE LINK CREATED');
     return link.invite_link;

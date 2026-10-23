@@ -4,12 +4,14 @@ import type { Bot } from 'grammy';
 import type { BotContext } from '../src/bot/context.js';
 import type { SubscriptionRepository } from '../src/modules/subscriptions/subscription.repository.js';
 
-function setup(active: { inviteLink: string } | null) {
+function setup(
+  active: { inviteLink: string; inviteLinks?: { url: string; expiresAt: Date }[] } | null,
+) {
   let handler: ((ctx: BotContext) => Promise<void>) | undefined;
   const on = vi.fn((_event: string, callback: (ctx: BotContext) => Promise<void>) => {
     handler = callback;
   });
-  const clearInvite = vi.fn().mockResolvedValue(undefined);
+  const clearInvite = vi.fn().mockResolvedValue(active);
   registerAccessHandlers(
     { on } as unknown as Bot<BotContext>,
     { clearInvite } as unknown as SubscriptionRepository,
@@ -68,5 +70,19 @@ describe('club join requests', () => {
     expect(declineChatJoinRequest).toHaveBeenCalledWith(-1004334407084, 123);
     expect(approveChatJoinRequest).not.toHaveBeenCalled();
     expect(clearInvite).not.toHaveBeenCalled();
+  });
+  it('approves an earlier unexpired link after refresh and revokes both links', async () => {
+    const { run, approveChatJoinRequest, declineChatJoinRequest, revokeChatInviteLink } = setup({
+      inviteLink: 'https://t.me/+new',
+      inviteLinks: [
+        { url: 'https://t.me/+paid', expiresAt: new Date(Date.now() + 3_600_000) },
+        { url: 'https://t.me/+new', expiresAt: new Date(Date.now() + 3_600_000) },
+      ],
+    });
+    await run();
+    expect(approveChatJoinRequest).toHaveBeenCalledWith(-1004334407084, 123);
+    expect(declineChatJoinRequest).not.toHaveBeenCalled();
+    expect(revokeChatInviteLink).toHaveBeenCalledWith(-1004334407084, 'https://t.me/+paid');
+    expect(revokeChatInviteLink).toHaveBeenCalledWith(-1004334407084, 'https://t.me/+new');
   });
 });
