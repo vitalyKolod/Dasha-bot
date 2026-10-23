@@ -14,12 +14,12 @@ export async function renderProductCheckout(
   testCheckout = false,
 ): Promise<void> {
   if (!ctx.from) return;
-  const renewal = await ctx.services.payments.hasPaidBefore(String(ctx.from.id));
   const testAccess =
     ctx.config.PAYMENT_PROVIDER === 'robokassa' &&
     ctx.config.ROBOKASSA_TEST_MODE &&
     (testCheckout || ctx.config.adminIds.has(String(ctx.from.id)));
   if (ctx.config.CHECKLIST_MODE && !testAccess) {
+    const renewal = await ctx.services.payments.hasPaidBefore(String(ctx.from.id));
     await renderScreen(ctx, {
       text: productMessage(renewal ? getProduct('monthly')! : product, false, renewal),
       keyboard: productKeyboard(product.id, null, ctx.config),

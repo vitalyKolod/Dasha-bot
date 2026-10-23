@@ -72,7 +72,7 @@ describe('checklist launch', () => {
     const ctx = {
       from: { id: 42 },
       config: { CHECKLIST_MODE: true, PRE_REGISTRATION: true },
-      services: { payments: { createCheckout } },
+      services: { payments: { createCheckout, hasPaidBefore: vi.fn().mockResolvedValue(false) } },
       reply,
     } as unknown as BotContext;
     await renderProductCheckout(ctx, getProduct('monthly')!);
