@@ -11,9 +11,11 @@ const bot = {
   }),
 } as unknown as Bot<BotContext>;
 function context(payload: string, admin: boolean) {
-  const reply = vi.fn().mockResolvedValue({});
+  const reply = vi.fn().mockResolvedValue({ message_id: 7, chat: { id: 42 } });
   const touch = vi.fn().mockResolvedValue({});
   const findByToken = vi.fn().mockResolvedValue(null);
+  const findReturnPayment = vi.fn().mockResolvedValue(null);
+  const editMessageText = vi.fn().mockResolvedValue({});
   const getActive = vi.fn().mockResolvedValue(null);
   const ctx = {
     from: { id: 42 },
@@ -21,10 +23,15 @@ function context(payload: string, admin: boolean) {
     match: payload,
     reply,
     config: { adminIds: new Set(admin ? ['42'] : []), NODE_ENV: 'development' },
-    services: { users: { touch }, payments: { findByToken }, subscriptions: { getActive } },
+    services: {
+      users: { touch },
+      payments: { findByToken, findReturnPayment },
+      subscriptions: { getActive },
+    },
+    api: { editMessageText },
     logger: { info: vi.fn() },
   } as unknown as BotContext;
-  return { ctx, reply, findByToken, getActive };
+  return { ctx, reply, findByToken, findReturnPayment, editMessageText, getActive };
 }
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -32,6 +39,31 @@ beforeEach(() => {
 });
 
 describe('/start routing', () => {
+  it('shows the confirmed invoice status instead of the checklist menu', async () => {
+    const { ctx, reply, findReturnPayment, editMessageText } = context('payment_123', false);
+    ctx.config.CHECKLIST_MODE = true;
+    findReturnPayment.mockResolvedValue({ status: 'succeeded', processedAt: new Date() });
+    await start(ctx);
+    expect(findReturnPayment).toHaveBeenCalledWith('42', '123');
+    expect(reply).toHaveBeenCalledWith('⏳ Проверяем оплату…');
+    expect(editMessageText).toHaveBeenCalledWith(
+      42,
+      7,
+      expect.stringContaining('Оплата подтверждена'),
+    );
+  });
+  it('tells the buyer to wait for the webhook when confirmation is pending', async () => {
+    const { ctx, findReturnPayment, editMessageText } = context('payment_success', false);
+    ctx.config.CHECKLIST_MODE = true;
+    findReturnPayment.mockResolvedValue({ status: 'pending' });
+    await start(ctx);
+    expect(findReturnPayment).toHaveBeenCalledWith('42', undefined);
+    expect(editMessageText).toHaveBeenCalledWith(
+      42,
+      7,
+      expect.stringContaining('Повторно оплачивать пока не нужно'),
+    );
+  });
   it('replaces old deep links with checklist welcome in launch mode', async () => {
     const { ctx, reply, findByToken, getActive } = context(`pay_${'A'.repeat(40)}`, false);
     ctx.config.CHECKLIST_MODE = true;

@@ -10,7 +10,6 @@ export interface Product {
   receiptDescription: string;
 }
 
-// REPLACE WITH REAL BUSINESS VALUES before production launch.
 export const products: readonly Product[] = [
   {
     id: 'monthly',
@@ -18,7 +17,7 @@ export const products: readonly Product[] = [
     shortDescription: 'Доступ на 30 дней',
     description: 'Полный доступ ко всем материалам клуба',
     durationDays: 30,
-    price: 99000,
+    price: 200000,
     currency: 'RUB',
     active: true,
     receiptDescription: 'Доступ в кулинарный клуб на 30 дней',
@@ -29,7 +28,7 @@ export const products: readonly Product[] = [
     shortDescription: 'Доступ на 90 дней',
     description: 'Полный доступ ко всем материалам клуба',
     durationDays: 90,
-    price: 249000,
+    price: 300000,
     currency: 'RUB',
     active: true,
     receiptDescription: 'Доступ в кулинарный клуб на 90 дней',

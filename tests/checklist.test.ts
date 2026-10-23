@@ -79,7 +79,7 @@ describe('checklist launch', () => {
     expect(createCheckout).not.toHaveBeenCalled();
     const call: unknown = reply.mock.calls[0];
     const [message, options] = call as [string, { reply_markup: InlineKeyboard }];
-    expect(message).toContain('990');
+    expect(message.replace(/\s/g, ' ')).toContain('2 000');
     expect(message).toContain('Оплата откроется после запуска клуба');
     expect(options.reply_markup.inline_keyboard.flat()).toContainEqual({
       text: '📄 Информация и условия',

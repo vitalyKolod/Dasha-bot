@@ -135,6 +135,14 @@ export class PaymentService {
   findByPublicId(id: string) {
     return this.payments.findByPublicId(id);
   }
+  async findReturnPayment(telegramId: string, invoiceId?: string) {
+    const payment = invoiceId
+      ? await this.payments.findByInvoice('robokassa', invoiceId)
+      : await this.payments.findLatestByTelegramId('robokassa', telegramId);
+    if (!payment || payment.telegramId !== telegramId) return null;
+    if (!invoiceId && payment.createdAt.getTime() < Date.now() - 24 * 60 * 60_000) return null;
+    return payment;
+  }
   async refreshStatus(publicId: string) {
     const payment = await this.payments.findByPublicId(publicId);
     if (!payment) return null;

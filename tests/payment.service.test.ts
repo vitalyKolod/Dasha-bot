@@ -43,3 +43,16 @@ describe('verified payment checks', () => {
     expect(missing).not.toHaveBeenCalled();
   });
 });
+
+describe('payment return lookup', () => {
+  it('does not reveal another user’s invoice', async () => {
+    const { process } = service({ telegramId: '999', status: 'succeeded' });
+    await expect(process.findReturnPayment('42', '123')).resolves.toBeNull();
+  });
+  it('reads a matching invoice without changing its status', async () => {
+    const payment = { telegramId: '42', status: 'succeeded', processedAt: new Date() };
+    const { process, findByInvoice } = service(payment);
+    await expect(process.findReturnPayment('42', '123')).resolves.toBe(payment);
+    expect(findByInvoice).toHaveBeenCalledWith('robokassa', '123');
+  });
+});

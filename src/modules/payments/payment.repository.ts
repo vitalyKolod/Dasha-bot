@@ -10,6 +10,9 @@ export class PaymentRepository {
   findByInvoice(provider: string, invoice: string) {
     return PaymentModel.findOne({ provider, providerInvoiceId: invoice });
   }
+  findLatestByTelegramId(provider: string, telegramId: string) {
+    return PaymentModel.findOne({ provider, telegramId }).sort({ createdAt: -1 });
+  }
   findById(id: string) {
     return PaymentModel.findById(id);
   }

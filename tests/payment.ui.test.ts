@@ -5,6 +5,12 @@ import { getProduct } from '../src/config/products.js';
 import type { AppConfig } from '../src/config/env.js';
 
 describe('product checkout screen', () => {
+  it('shows the agreed base prices for both active tariffs', () => {
+    expect(getProduct('monthly')?.price).toBe(200000);
+    expect(getProduct('quarterly')?.price).toBe(300000);
+    expect(productMessage(getProduct('monthly')!).replace(/\s/g, ' ')).toContain('2 000 ₽');
+    expect(productMessage(getProduct('quarterly')!).replace(/\s/g, ' ')).toContain('3 000 ₽');
+  });
   it('shows terms and a direct payment URL without another checkout callback', () => {
     const product = getProduct('monthly')!;
     const keyboard = productKeyboard('monthly', 'https://auth.robokassa.ru/Merchant/Index.aspx', {

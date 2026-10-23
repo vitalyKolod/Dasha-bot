@@ -81,6 +81,10 @@ describe('Robokassa result and return pages', () => {
     expect(success.body).toContain('Оплата завершена. Вернитесь в Telegram');
     expect(fail.body).toContain('Оплата не завершена');
     expect(success.body).toContain('https://t.me/dasha_zagotovki_bot');
+    const withInvoice = await server.inject('/payments/robokassa/success?InvId=42');
+    expect(withInvoice.body).toContain('?start=payment_42');
+    const invalidInvoice = await server.inject('/payments/robokassa/success?InvId=wrong');
+    expect(invalidInvoice.body).toContain('?start=payment_success');
     expect(handleVerifiedEvent).not.toHaveBeenCalled();
     await server.close();
   });
