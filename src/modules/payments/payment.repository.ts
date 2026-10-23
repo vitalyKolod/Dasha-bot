@@ -79,7 +79,7 @@ export class PaymentRepository {
     );
   }
   retryDelivery(id: string, attempts: number) {
-    const delay = Math.min(60_000 * 2 ** Math.min(attempts - 1, 6), 3_600_000);
+    const delay = Math.min(5_000 * 2 ** Math.min(attempts - 1, 6), 300_000);
     return PaymentModel.updateOne(
       { _id: id, deliveryStatus: 'sending' },
       {

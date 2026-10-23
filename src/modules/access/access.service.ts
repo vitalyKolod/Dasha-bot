@@ -30,11 +30,15 @@ export class AccessService {
       }
     }
     const expiresAt = new Date(Date.now() + this.config.INVITE_LINK_TTL_HOURS * 3_600_000);
-    const link = await this.api.createChatInviteLink(this.config.PRIVATE_CLUB_CHAT_ID, {
-      creates_join_request: true,
-      expire_date: Math.floor(expiresAt.getTime() / 1000),
-      name: `user-${subscription.telegramId}`,
-    });
+    const link = await this.api.createChatInviteLink(
+      this.config.PRIVATE_CLUB_CHAT_ID,
+      {
+        creates_join_request: true,
+        expire_date: Math.floor(expiresAt.getTime() / 1000),
+        name: `user-${subscription.telegramId}`,
+      },
+      AbortSignal.timeout(12_000) as unknown as Parameters<Api['createChatInviteLink']>[2],
+    );
     subscription.inviteLink = link.invite_link;
     subscription.inviteRequiresApproval = true;
     subscription.inviteLinkExpiresAt = expiresAt;

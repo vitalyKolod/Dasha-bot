@@ -18,7 +18,7 @@ export class PaymentDeliveryService {
     private readonly subscriptions = new SubscriptionService(),
   ) {}
   start() {
-    this.timer = setInterval(() => void this.runOnce(), 30_000);
+    this.timer = setInterval(() => void this.runOnce(), 10_000);
     void this.runOnce();
   }
   stop() {
@@ -44,6 +44,9 @@ export class PaymentDeliveryService {
             Number(payment.telegramId),
             `🎉 <b>Оплата прошла!</b>\n\nДобро пожаловать в клуб 💛\n\nТвой доступ активен: <b>${subscription.expiresAt ? `до ${formatDate(subscription.expiresAt)}` : 'навсегда'}</b>`,
             { parse_mode: 'HTML', reply_markup: keyboard },
+            AbortSignal.timeout(12_000) as unknown as Parameters<
+              typeof this.bot.api.sendMessage
+            >[3],
           );
           await this.payments.markDelivered(String(payment._id));
         } catch (error) {
