@@ -24,7 +24,10 @@ export async function renderScreen(
 
   if (ctx.callbackQuery) {
     await ctx.answerCallbackQuery().catch((error: unknown) => {
-      ctx.logger.debug({ err: error }, 'Callback query was already answered or expired');
+      ctx.logger.debug(
+        { errorType: error instanceof Error ? error.name : 'unknown' },
+        'Callback query was already answered or expired',
+      );
     });
 
     const message = ctx.callbackQuery.message;
@@ -49,7 +52,10 @@ export async function renderScreen(
         return;
       } catch (error) {
         if (isNotModified(error)) return;
-        ctx.logger.warn({ err: error }, 'Could not edit UI message; sending a new panel');
+        ctx.logger.warn(
+          { errorType: error instanceof Error ? error.name : 'unknown' },
+          'Could not edit UI message; sending a new panel',
+        );
       }
     }
   }

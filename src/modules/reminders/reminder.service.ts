@@ -39,7 +39,8 @@ export class ReminderService {
         );
     }
     for (const expired of await this.subscriptions.listExpiredNeedingRemoval()) {
-      if (await this.access.removeFromClub(expired.telegramId))
+      const pending = await this.subscriptions.markAccessRemovalPending(String(expired._id));
+      if (pending && (await this.access.removeFromClub(expired.telegramId)))
         await this.subscriptions.markAccessRemoved(String(expired._id));
     }
   }
@@ -66,7 +67,10 @@ export class ReminderService {
         reply_markup: new InlineKeyboard().text('💳 Продлить доступ', 'products'),
       });
     } catch (error) {
-      this.logger.warn({ err: error, telegramId }, 'Reminder delivery failed');
+      this.logger.warn(
+        { errorType: error instanceof Error ? error.name : 'unknown', telegramId },
+        'Reminder delivery failed',
+      );
     }
   }
 }

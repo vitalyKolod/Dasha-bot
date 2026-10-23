@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AccessService } from '../src/modules/access/access.service.js';
+import { AccessService, ClubAccessBlockedError } from '../src/modules/access/access.service.js';
 import type { Api } from 'grammy';
 import type { AppConfig } from '../src/config/env.js';
 import type { Logger } from 'pino';
@@ -72,6 +72,56 @@ describe('invitation reuse', () => {
       expect.objectContaining({ creates_join_request: true }),
       expect.anything(),
     );
+  });
+  it('does not send an unusable invite to a user blocked by an administrator', async () => {
+    const createChatInviteLink = vi.fn();
+    const unbanChatMember = vi.fn();
+    const access = new AccessService(
+      {
+        getChatMember: vi.fn().mockResolvedValue({ status: 'kicked' }),
+        createChatInviteLink,
+        unbanChatMember,
+      } as unknown as Api,
+      { PRIVATE_CLUB_CHAT_ID: '-1004334407084' } as AppConfig,
+      {} as Logger,
+    );
+    await expect(
+      access.getClubAccess({ telegramId: '123' } as SubscriptionDocument),
+    ).rejects.toBeInstanceOf(ClubAccessBlockedError);
+    expect(unbanChatMember).not.toHaveBeenCalled();
+    expect(createChatInviteLink).not.toHaveBeenCalled();
+  });
+  it('repairs a ban left by a failed automated removal after renewal', async () => {
+    const subscription = {
+      telegramId: '123',
+      accessRemovalPendingAt: new Date(),
+      save: vi.fn().mockResolvedValue(undefined),
+    } as unknown as SubscriptionDocument;
+    const getChatMember = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 'kicked' })
+      .mockResolvedValueOnce({ status: 'left' });
+    const unbanChatMember = vi.fn().mockResolvedValue(true);
+    const clearAccessRemovalPending = vi.fn().mockResolvedValue(undefined);
+    const access = new AccessService(
+      {
+        getChatMember,
+        unbanChatMember,
+        createChatInviteLink: vi.fn().mockResolvedValue({ invite_link: 'https://t.me/+new' }),
+      } as unknown as Api,
+      { PRIVATE_CLUB_CHAT_ID: '-1004334407084', INVITE_LINK_TTL_HOURS: 24 } as AppConfig,
+      { info: vi.fn() } as unknown as Logger,
+      {
+        findByTelegramId: vi.fn().mockResolvedValue(subscription),
+        clearAccessRemovalPending,
+      } as unknown as SubscriptionRepository,
+    );
+    await expect(access.getClubAccess(subscription)).resolves.toEqual({
+      url: 'https://t.me/+new',
+      member: false,
+    });
+    expect(unbanChatMember).toHaveBeenCalledOnce();
+    expect(clearAccessRemovalPending).toHaveBeenCalledWith('123');
   });
   it('creates only one approval invite for concurrent delivery and account requests', async () => {
     const save = vi.fn().mockResolvedValue(undefined);

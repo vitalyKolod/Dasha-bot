@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BotContext } from '../src/bot/context.js';
-import { showAccount } from '../src/bot/handlers/subscription.handler.js';
+import { showAccount, showClubLink } from '../src/bot/handlers/subscription.handler.js';
 import { renderProductCheckout } from '../src/bot/handlers/products.handler.js';
 import { getProduct } from '../src/config/products.js';
 import type { InlineKeyboard } from 'grammy';
@@ -42,8 +42,8 @@ describe('paid club account', () => {
     const buttons = options.reply_markup.inline_keyboard.flat();
     expect(buttons).toContainEqual(
       expect.objectContaining({
-        text: '👉 Вступить в закрытый клуб',
-        url: 'https://t.me/+private',
+        text: '👉 Получить ссылку для входа',
+        callback_data: 'subscription:open',
       }),
     );
     expect(buttons.some((button) => button.text.includes('Продлить'))).toBe(false);
@@ -61,8 +61,12 @@ describe('paid club account', () => {
   });
 
   it('can request a fresh invitation when a link stops working', async () => {
-    const { ctx, getClubAccess } = context();
-    await showAccount(ctx, true);
+    const { ctx, getClubAccess, reply } = context();
+    await showClubLink(ctx);
     expect(getClubAccess).toHaveBeenCalledWith(expect.any(Object), true);
+    const [, options] = reply.mock.calls[0] as [string, { reply_markup: InlineKeyboard }];
+    expect(options.reply_markup.inline_keyboard.flat()).toContainEqual(
+      expect.objectContaining({ url: 'https://t.me/+private' }),
+    );
   });
 });

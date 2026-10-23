@@ -10,6 +10,13 @@ export interface ClubAccess {
   member: boolean;
 }
 
+export class ClubAccessBlockedError extends Error {
+  constructor() {
+    super('User is blocked from the club');
+    this.name = 'ClubAccessBlockedError';
+  }
+}
+
 export class AccessService {
   private readonly pendingInvites = new Map<string, Promise<string | undefined>>();
   constructor(
@@ -24,11 +31,29 @@ export class AccessService {
     refreshInvite = false,
   ): Promise<ClubAccess | undefined> {
     if (!this.config.PRIVATE_CLUB_CHAT_ID) return undefined;
-    const member = await this.api.getChatMember(
+    let member = await this.api.getChatMember(
       this.config.PRIVATE_CLUB_CHAT_ID,
       Number(subscription.telegramId),
       AbortSignal.timeout(12_000) as unknown as Parameters<Api['getChatMember']>[2],
     );
+    if (member.status === 'kicked') {
+      if (!subscription.accessRemovalPendingAt) throw new ClubAccessBlockedError();
+      await this.api.unbanChatMember(
+        this.config.PRIVATE_CLUB_CHAT_ID,
+        Number(subscription.telegramId),
+        { only_if_banned: true },
+        AbortSignal.timeout(12_000) as unknown as Parameters<Api['unbanChatMember']>[3],
+      );
+      member = await this.api.getChatMember(
+        this.config.PRIVATE_CLUB_CHAT_ID,
+        Number(subscription.telegramId),
+        AbortSignal.timeout(12_000) as unknown as Parameters<Api['getChatMember']>[2],
+      );
+      if (member.status === 'kicked') throw new ClubAccessBlockedError();
+      await this.subscriptions.clearAccessRemovalPending(subscription.telegramId);
+    } else if (subscription.accessRemovalPendingAt) {
+      await this.subscriptions.clearAccessRemovalPending(subscription.telegramId);
+    }
     const isMember =
       member.status === 'creator' ||
       member.status === 'administrator' ||
@@ -105,14 +130,27 @@ export class AccessService {
   async removeFromClub(telegramId: string): Promise<boolean> {
     if (!this.config.PRIVATE_CLUB_CHAT_ID) return false;
     try {
-      await this.api.banChatMember(this.config.PRIVATE_CLUB_CHAT_ID, Number(telegramId));
-      await this.api.unbanChatMember(this.config.PRIVATE_CLUB_CHAT_ID, Number(telegramId), {
-        only_if_banned: true,
-      });
+      await this.api.banChatMember(
+        this.config.PRIVATE_CLUB_CHAT_ID,
+        Number(telegramId),
+        { revoke_messages: false },
+        AbortSignal.timeout(12_000) as unknown as Parameters<Api['banChatMember']>[3],
+      );
+      await this.api.unbanChatMember(
+        this.config.PRIVATE_CLUB_CHAT_ID,
+        Number(telegramId),
+        {
+          only_if_banned: true,
+        },
+        AbortSignal.timeout(12_000) as unknown as Parameters<Api['unbanChatMember']>[3],
+      );
       this.logger.info({ telegramId }, '👢 USER REMOVED FROM CLUB');
       return true;
     } catch (error) {
-      this.logger.warn({ err: error, telegramId }, 'Could not remove user from club');
+      this.logger.warn(
+        { errorType: error instanceof Error ? error.name : 'unknown', telegramId },
+        'Could not remove user from club',
+      );
       return false;
     }
   }

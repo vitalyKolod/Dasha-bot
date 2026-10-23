@@ -56,7 +56,10 @@ export async function startApplication() {
       const member = await bot.api.getChatMember(config.PRIVATE_CLUB_CHAT_ID, bot.botInfo.id);
       logger.info({ status: member.status }, '✅ Club group access verified');
     } catch (error) {
-      logger.warn({ err: error }, '⚠️ Cannot verify club permissions');
+      logger.warn(
+        { errorType: error instanceof Error ? error.name : 'unknown' },
+        '⚠️ Cannot verify club permissions',
+      );
     }
   }
   const server = await createHttpServer(config, logger, provider, payments, delivery);

@@ -38,6 +38,7 @@ describe('paid invitation delivery', () => {
     };
     expect(options.reply_markup.inline_keyboard.flat()).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ callback_data: 'receipt:club' }),
         expect.objectContaining({ callback_data: 'receipt:subscription' }),
         expect.objectContaining({ callback_data: 'receipt:menu' }),
       ]),

@@ -61,7 +61,9 @@ export function createBot(
       if (
         (data === 'subscription' ||
           data === 'subscription:refresh' ||
+          data === 'subscription:open' ||
           data === 'receipt:subscription' ||
+          data === 'receipt:club' ||
           /^check:/.test(data)) &&
         ctx.from &&
         (await ctx.services.subscriptions.getActive(String(ctx.from.id)))
@@ -111,7 +113,10 @@ export function createBot(
         'Telegram API error',
       );
     else if (error instanceof HttpError)
-      logger.error({ err: error, updateId: ctx.update.update_id }, 'Telegram network error');
+      logger.error(
+        { errorType: error.name, updateId: ctx.update.update_id },
+        'Telegram network error',
+      );
     else logger.error({ err: error, updateId: ctx.update.update_id }, 'Bot handler error');
   });
   return bot;

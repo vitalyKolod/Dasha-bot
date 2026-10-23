@@ -69,7 +69,7 @@ export function registerPaymentHandlers(bot: Bot<BotContext>): void {
       const keyboard = new InlineKeyboard();
       if (access)
         keyboard
-          .url(access.member ? '🍳 Открыть клуб' : '👉 Вступить в закрытый клуб', access.url)
+          .text(access.member ? '🍳 Открыть клуб' : '👉 Получить ссылку для входа', 'receipt:club')
           .row();
       keyboard.text('👤 Мой аккаунт', 'receipt:subscription').row();
       keyboard.text('🏠 Главное меню', 'receipt:menu');

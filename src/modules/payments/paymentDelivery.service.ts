@@ -37,7 +37,10 @@ export class PaymentDeliveryService {
           const access = await this.access.getClubAccess(subscription);
           if (!access) throw new Error('Private club chat is not configured');
           const keyboard = new InlineKeyboard()
-            .url(access.member ? '🍳 Открыть клуб' : '👉 Вступить в закрытый клуб', access.url)
+            .text(
+              access.member ? '🍳 Открыть клуб' : '👉 Получить ссылку для входа',
+              'receipt:club',
+            )
             .row()
             .text('👤 Мой аккаунт', 'receipt:subscription')
             .row()

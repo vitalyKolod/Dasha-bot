@@ -11,6 +11,7 @@ describe('expired club access', () => {
     const expired = { _id: 'sub', telegramId: '123' };
     const removeFromClub = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     const markAccessRemoved = vi.fn();
+    const markAccessRemovalPending = vi.fn().mockResolvedValue(expired);
     const reminders = new ReminderService(
       {} as Bot<BotContext>,
       { removeFromClub } as unknown as AccessService,
@@ -19,6 +20,7 @@ describe('expired club access', () => {
         listActiveExpiringBetween: vi.fn().mockResolvedValue([]),
         listDueForExpiration: vi.fn().mockResolvedValue([]),
         listExpiredNeedingRemoval: vi.fn().mockResolvedValue([expired]),
+        markAccessRemovalPending,
         markAccessRemoved,
       } as unknown as SubscriptionRepository,
     );
@@ -27,5 +29,6 @@ describe('expired club access', () => {
     await reminders.run();
     expect(markAccessRemoved).toHaveBeenCalledWith('sub');
     expect(removeFromClub).toHaveBeenCalledTimes(2);
+    expect(markAccessRemovalPending).toHaveBeenCalledTimes(2);
   });
 });

@@ -54,8 +54,18 @@ export class SubscriptionRepository {
   markAccessRemoved(id: string) {
     return SubscriptionModel.updateOne(
       { _id: id, status: 'expired' },
-      { $set: { accessRemovedAt: new Date() } },
+      { $set: { accessRemovedAt: new Date() }, $unset: { accessRemovalPendingAt: 1 } },
     );
+  }
+  markAccessRemovalPending(id: string) {
+    return SubscriptionModel.findOneAndUpdate(
+      { _id: id, status: 'expired', accessRemovedAt: { $exists: false } },
+      { $set: { accessRemovalPendingAt: new Date() } },
+      { new: true },
+    );
+  }
+  clearAccessRemovalPending(telegramId: string) {
+    return SubscriptionModel.updateOne({ telegramId }, { $unset: { accessRemovalPendingAt: 1 } });
   }
   clearInvite(telegramId: string, link: string) {
     return SubscriptionModel.findOneAndUpdate(

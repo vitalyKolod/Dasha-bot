@@ -10,6 +10,7 @@ export interface Subscription {
   lastPaymentId: Types.ObjectId;
   accessGrantedAt?: Date;
   accessRemovedAt?: Date;
+  accessRemovalPendingAt?: Date;
   reminder3DaysSentAt?: Date;
   reminder1DaySentAt?: Date;
   expirationNotificationSentAt?: Date;
@@ -31,6 +32,7 @@ const schema = new Schema<Subscription>(
     lastPaymentId: { type: Schema.Types.ObjectId, required: true, ref: 'Payment' },
     accessGrantedAt: Date,
     accessRemovedAt: Date,
+    accessRemovalPendingAt: Date,
     reminder3DaysSentAt: Date,
     reminder1DaySentAt: Date,
     expirationNotificationSentAt: Date,
