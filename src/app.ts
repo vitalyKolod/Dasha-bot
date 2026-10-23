@@ -35,13 +35,16 @@ export async function startApplication() {
     return serviceHolder.value;
   });
   try {
-    await bot.init();
+    await bot.init(AbortSignal.timeout(15_000) as unknown as Parameters<typeof bot.init>[0]);
     config.BOT_USERNAME ??= bot.botInfo.username;
     logger.info({ username: `@${bot.botInfo.username}` }, '✅ Telegram bot connected');
   } catch (error) {
-    logger.fatal({ err: error }, '❌ Telegram bot initialization failed');
+    logger.fatal(
+      { errorType: error instanceof Error ? error.name : 'unknown' },
+      '❌ Telegram bot initialization failed',
+    );
     await mongoose.disconnect();
-    throw error;
+    throw new Error('Telegram bot initialization failed', { cause: error });
   }
   const subscriptions = new SubscriptionService();
   const access = createAccessService(bot, config, logger);
