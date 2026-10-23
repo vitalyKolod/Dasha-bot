@@ -6,6 +6,7 @@ import { AdminDialogModel, MaterialModel } from '../../modules/admin/content.mod
 import { deliverMaterial } from './admin/admin.handler.js';
 import { InlineKeyboard } from 'grammy';
 import { formatDate } from '../ui/helpers/formatDate.js';
+import { addPaymentSupportButton, paymentSupportHint } from '../ui/paymentSupport.js';
 
 export function registerStartHandler(bot: Bot<BotContext>): void {
   bot.command('start', async (ctx) => {
@@ -16,20 +17,37 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
     if (payload === 'payment_success' || /^payment_[1-9]\d{0,9}$/.test(payload)) {
       const checking = await ctx.reply('⏳ Проверяем оплату…');
       const invoiceId = payload === 'payment_success' ? undefined : payload.slice(8);
-      const payment = await ctx.services.payments.findReturnPayment(String(ctx.from.id), invoiceId);
-      const text = !payment
-        ? '⏳ Подтверждение оплаты пока не найдено. Если вы оплатили, доступ придёт сюда автоматически. Повторно оплачивать пока не нужно.'
-        : payment.status === 'succeeded' && payment.processedAt
-          ? payment.deliveryStatus === 'sent'
-            ? '✅ Оплата подтверждена. Доступ активирован. Приглашение в закрытый клуб уже отправлено в этот чат.'
-            : '✅ Оплата подтверждена. Доступ активирован. Приглашение в закрытый клуб придёт сюда автоматически.'
-          : ['canceled', 'failed', 'refunded'].includes(payment.status)
-            ? '❌ Оплата не подтверждена. Если деньги списались, обратитесь в поддержку.'
-            : '⏳ Ждём подтверждения Robokassa. Доступ придёт сюда автоматически. Повторно оплачивать пока не нужно.';
-      const keyboard =
-        payment?.status === 'succeeded' && payment.processedAt
-          ? new InlineKeyboard().text('👤 Мой аккаунт', 'receipt:subscription')
+      let lookupFailed = false;
+      const payment = await ctx.services.payments
+        .findReturnPayment(String(ctx.from.id), invoiceId)
+        .catch((error: unknown) => {
+          lookupFailed = true;
+          ctx.logger.warn(
+            { errorType: error instanceof Error ? error.name : 'unknown' },
+            'Could not find return payment',
+          );
+          return null;
+        });
+      const help = paymentSupportHint(ctx.config);
+      const text = lookupFailed
+        ? `⚠️ Не удалось проверить оплату. Попробуйте чуть позже. ${help}`
+        : !payment
+          ? `⏳ Подтверждение оплаты пока не найдено. Повторно оплачивать пока не нужно. ${help}`
+          : payment.status === 'succeeded' && payment.processedAt
+            ? payment.deliveryStatus === 'sent'
+              ? '✅ Оплата подтверждена. Доступ активирован. Приглашение в закрытый клуб уже отправлено в этот чат.'
+              : `✅ Оплата подтверждена. Доступ активирован. Приглашение в закрытый клуб придёт сюда автоматически. ${help}`
+            : ['canceled', 'failed', 'refunded'].includes(payment.status)
+              ? `❌ Оплата не подтверждена. ${help}`
+              : `⏳ Ждём подтверждения Robokassa. Доступ придёт сюда автоматически. Повторно оплачивать пока не нужно. ${help}`;
+      const paidAndProcessed = payment?.status === 'succeeded' && !!payment.processedAt;
+      const keyboard = paidAndProcessed
+        ? new InlineKeyboard().text('👤 Мой аккаунт', 'receipt:subscription')
+        : ctx.config.SUPPORT_USERNAME
+          ? addPaymentSupportButton(new InlineKeyboard(), ctx.config)
           : undefined;
+      if (keyboard && ctx.config.SUPPORT_USERNAME && paidAndProcessed)
+        addPaymentSupportButton(keyboard, ctx.config);
       try {
         await ctx.api.editMessageText(checking.chat.id, checking.message_id, text, {
           ...(keyboard ? { reply_markup: keyboard } : {}),
@@ -40,7 +58,12 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
       return;
     }
     if (payload === 'payment_failed') {
-      await ctx.reply('❌ Оплата не завершена. Вы можете выбрать тариф и попробовать снова.');
+      await ctx.reply(
+        `❌ Оплата не завершена. Если платёж не проходил, можно выбрать тариф и попробовать снова. ${paymentSupportHint(ctx.config)}`,
+        ctx.config.SUPPORT_USERNAME
+          ? { reply_markup: addPaymentSupportButton(new InlineKeyboard(), ctx.config) }
+          : {},
+      );
       return;
     }
     if (ctx.config.CHECKLIST_MODE && !ctx.config.adminIds.has(String(ctx.from.id))) {
@@ -72,12 +95,15 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
           return;
         }
       }
-      const keyboard = new InlineKeyboard()
-        .text('🔄 Проверить оплату', `check:${payment.publicId}`)
-        .row()
-        .text('🏠 Главное меню', 'menu');
+      const keyboard = addPaymentSupportButton(
+        new InlineKeyboard()
+          .text('🔄 Проверить оплату', `check:${payment.publicId}`)
+          .row()
+          .text('🏠 Главное меню', 'menu'),
+        ctx.config,
+      );
       await ctx.reply(
-        payment.status === 'canceled' ? '❌ Оплата не завершена' : '⏳ Оплата пока обрабатывается',
+        `${payment.status === 'canceled' ? '❌ Оплата не завершена' : '⏳ Оплата пока обрабатывается'}\n\n${paymentSupportHint(ctx.config)}`,
         { reply_markup: keyboard },
       );
       return;

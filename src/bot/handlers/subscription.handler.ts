@@ -3,6 +3,7 @@ import type { BotContext } from '../context.js';
 import { getProduct } from '../../config/products.js';
 import { formatDate } from '../ui/helpers/formatDate.js';
 import { renderScreen } from '../ui/renderScreen.js';
+import { addPaymentSupportButton } from '../ui/paymentSupport.js';
 
 export async function showAccount(
   ctx: BotContext,
@@ -39,6 +40,8 @@ export async function showAccount(
       .url(access.member ? '🍳 Открыть клуб' : '👉 Вступить в закрытый клуб', access.url)
       .row();
   if (!access?.member) keyboard.text('🔄 Обновить ссылку', 'subscription:refresh').row();
+  if (!access?.member && ctx.config.SUPPORT_USERNAME)
+    addPaymentSupportButton(keyboard, ctx.config, '💬 Проблема со входом').row();
   keyboard.text('🏠 Главное меню', 'menu');
   await renderScreen(
     ctx,

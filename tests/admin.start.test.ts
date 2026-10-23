@@ -66,6 +66,26 @@ describe('/start routing', () => {
       {},
     );
   });
+  it('shows the payment support contact when confirmation is delayed', async () => {
+    const { ctx, findReturnPayment, editMessageText } = context('payment_success', false);
+    ctx.config.SUPPORT_USERNAME = 'vryblevskaya';
+    findReturnPayment.mockResolvedValue({ status: 'pending' });
+    await start(ctx);
+    expect(editMessageText.mock.calls[0]?.[2]).toContain('@vryblevskaya');
+    const options = editMessageText.mock.calls[0]?.[3] as {
+      reply_markup: { inline_keyboard: { url?: string }[][] };
+    };
+    expect(options.reply_markup.inline_keyboard.flat()).toContainEqual(
+      expect.objectContaining({ url: 'https://t.me/vryblevskaya' }),
+    );
+  });
+  it('points a buyer with a failed return to support if money was debited', async () => {
+    const { ctx, reply } = context('payment_failed', false);
+    ctx.config.SUPPORT_USERNAME = 'vryblevskaya';
+    await start(ctx);
+    expect(reply.mock.calls[0]?.[0]).toContain('чек или скриншот оплаты');
+    expect(reply.mock.calls[0]?.[0]).toContain('@vryblevskaya');
+  });
   it('replaces old deep links with checklist welcome in launch mode', async () => {
     const { ctx, reply, findByToken, getActive } = context(`pay_${'A'.repeat(40)}`, false);
     ctx.config.CHECKLIST_MODE = true;
