@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { productKeyboard } from '../src/bot/ui/keyboards/products.keyboard.js';
-import { productMessage } from '../src/bot/ui/messages/payment.message.js';
-import { getProduct } from '../src/config/products.js';
+import { productKeyboard, productsKeyboard } from '../src/bot/ui/keyboards/products.keyboard.js';
+import { productMessage, productSelectionMessage } from '../src/bot/ui/messages/payment.message.js';
+import { getActiveProducts, getProduct } from '../src/config/products.js';
 import type { AppConfig } from '../src/config/env.js';
 
 describe('product checkout screen', () => {
@@ -11,11 +11,18 @@ describe('product checkout screen', () => {
     expect(productMessage(getProduct('monthly')!).replace(/\s/g, ' ')).toContain('2 000 ₽');
     expect(productMessage(getProduct('quarterly')!).replace(/\s/g, ' ')).toContain('3 000 ₽');
     expect(productMessage(getProduct('monthly')!).replace(/\s/g, ' ')).toContain(
-      'продление стоит 1 000 ₽ за каждые 30 дней',
+      'Следующий месяц — <b>1 000 ₽</b>',
     );
     expect(productMessage(getProduct('monthly')!, true, true).replace(/\s/g, ' ')).toContain(
       'Стоимость: <b>1 000 ₽</b>',
     );
+  });
+  it('keeps tariff choices and the renewal price easy to scan', () => {
+    const choices = productsKeyboard(getActiveProducts()).inline_keyboard.flat();
+    expect(choices[0]?.text.replace(/\s/g, ' ')).toContain('1 месяц · 2 000 ₽');
+    expect(choices[1]?.text.replace(/\s/g, ' ')).toContain('3 месяца · 3 000 ₽');
+    expect(productSelectionMessage(false)).toContain('1 000 ₽ / месяц');
+    expect(productSelectionMessage(true, true)).toContain('1 000 ₽ / 30 дней');
   });
   it('shows terms and a direct payment URL without another checkout callback', () => {
     const product = getProduct('monthly')!;

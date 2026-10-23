@@ -2,7 +2,7 @@ import type { Bot } from 'grammy';
 import type { BotContext } from '../context.js';
 import { getActiveProducts, getProduct, type Product } from '../../config/products.js';
 import { productsKeyboard, productKeyboard } from '../ui/keyboards/products.keyboard.js';
-import { productMessage } from '../ui/messages/payment.message.js';
+import { productMessage, productSelectionMessage } from '../ui/messages/payment.message.js';
 import { insideMessage } from '../ui/messages/start.message.js';
 import { InlineKeyboard } from 'grammy';
 import { showWaitlist } from './waitlist.handler.js';
@@ -48,7 +48,8 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
     if (!ctx.from || ctx.config.PAYMENT_PROVIDER !== 'robokassa' || !ctx.config.ROBOKASSA_TEST_MODE)
       return;
     const renewal = await ctx.services.payments.hasPaidBefore(String(ctx.from.id));
-    await ctx.reply('🧪 Тестовый платёж: деньги не списываются. Выберите тариф:', {
+    await ctx.reply(productSelectionMessage(renewal, true), {
+      parse_mode: 'HTML',
       reply_markup: productsKeyboard(getActiveProducts(), 'testpayment', renewal),
     });
   });
@@ -97,9 +98,7 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
       return;
     }
     await renderScreen(ctx, {
-      text: renewal
-        ? '🔍 <b>Продление клуба</b>\n\nДля тех, кто уже оплачивал доступ: 1 000 ₽ за 30 дней. Цена сохраняется после перерыва.'
-        : '🔍 <b>Выберите тариф</b>\n\nПервый доступ: 1 месяц — 2 000 ₽; 3 месяца — 3 000 ₽. После первой оплаты продление — 1 000 ₽ за 30 дней, даже после перерыва. Все тарифы открывают полный доступ к клубу.',
+      text: productSelectionMessage(renewal),
       keyboard: productsKeyboard(products, 'product', renewal),
     });
   });

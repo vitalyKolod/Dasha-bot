@@ -11,12 +11,15 @@ export const productsKeyboard = (
   const keyboard = new InlineKeyboard();
   if (renewal)
     return keyboard
-      .text('Продлить на 1 месяц — 1 000 ₽', `${callbackPrefix}:monthly`)
+      .text('🔁 Продлить на месяц · 1 000 ₽', `${callbackPrefix}:monthly`)
       .row()
       .text('← Назад', 'menu');
   products.forEach((product) =>
     keyboard
-      .text(`${product.title} — ${formatMoney(product.price)}`, `${callbackPrefix}:${product.id}`)
+      .text(
+        `${product.id === 'monthly' ? '🌿' : '✨'} ${product.title} · ${formatMoney(product.price)}`,
+        `${callbackPrefix}:${product.id}`,
+      )
       .row(),
   );
   return keyboard.text('← Назад', 'menu');
