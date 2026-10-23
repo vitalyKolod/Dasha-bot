@@ -24,14 +24,18 @@ export class PaymentService {
   ) {
     this.returnTokens = new ReturnTokenService(config.PAYMENT_RETURN_TOKEN_TTL_MINUTES);
   }
-  async createCheckout(input: {
-    userId: Types.ObjectId;
-    telegramId: string;
-    productId: string;
-    renewal: boolean;
-  }) {
-    const product = getProduct(input.productId);
+  hasPaidBefore(telegramId: string) {
+    return this.payments.hasSucceededPayment(
+      this.provider.name,
+      telegramId,
+      this.config.ROBOKASSA_TEST_MODE,
+    );
+  }
+  async createCheckout(input: { userId: Types.ObjectId; telegramId: string; productId: string }) {
+    const renewal = await this.hasPaidBefore(input.telegramId);
+    const product = getProduct(renewal ? 'monthly' : input.productId);
     if (!product) throw new AppError('Тариф недоступен', 404, 'PRODUCT_NOT_FOUND');
+    const amount = renewal ? 100000 : product.price;
     let payment: Awaited<ReturnType<PaymentRepository['create']>> | undefined;
     let invoiceId = '';
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -44,11 +48,12 @@ export class PaymentService {
           userId: input.userId,
           telegramId: input.telegramId,
           productId: product.id,
-          amount: product.price,
+          amount,
           currency: product.currency,
           provider: this.provider.name,
           status: 'created',
-          purpose: input.renewal ? 'renewal' : 'new_subscription',
+          purpose: renewal ? 'renewal' : 'new_subscription',
+          testMode: this.provider.name === 'robokassa' ? this.config.ROBOKASSA_TEST_MODE : false,
           termsAcceptedAt: new Date(),
           offerVersion: this.config.OFFER_VERSION,
         });
@@ -82,7 +87,7 @@ export class PaymentService {
         payment: updated.publicId,
         telegramId: input.telegramId,
         product: product.id,
-        amount: product.price,
+        amount,
         currency: product.currency,
       },
       '💳 PAYMENT CREATED',

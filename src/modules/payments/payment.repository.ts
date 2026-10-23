@@ -13,6 +13,17 @@ export class PaymentRepository {
   findLatestByTelegramId(provider: string, telegramId: string) {
     return PaymentModel.findOne({ provider, telegramId }).sort({ createdAt: -1 });
   }
+  async hasSucceededPayment(provider: string, telegramId: string, testMode: boolean) {
+    return Boolean(
+      await PaymentModel.exists({
+        provider,
+        telegramId,
+        status: 'succeeded',
+        processedAt: { $exists: true },
+        ...(provider === 'robokassa' ? { testMode: testMode ? { $ne: false } : false } : {}),
+      }),
+    );
+  }
   findById(id: string) {
     return PaymentModel.findById(id);
   }

@@ -16,6 +16,7 @@ export interface Payment {
   providerInvoiceId?: string;
   status: PaymentStatus;
   purpose: PaymentPurpose;
+  testMode?: boolean;
   checkoutUrl?: string;
   termsAcceptedAt: Date;
   offerVersion: string;
@@ -48,6 +49,7 @@ const schema = new Schema<Payment>(
       default: 'created',
     },
     purpose: { type: String, required: true, enum: ['new_subscription', 'renewal'] },
+    testMode: Boolean,
     checkoutUrl: String,
     termsAcceptedAt: { type: Date, required: true },
     offerVersion: { type: String, required: true },

@@ -10,6 +10,12 @@ describe('product checkout screen', () => {
     expect(getProduct('quarterly')?.price).toBe(300000);
     expect(productMessage(getProduct('monthly')!).replace(/\s/g, ' ')).toContain('2 000 ₽');
     expect(productMessage(getProduct('quarterly')!).replace(/\s/g, ' ')).toContain('3 000 ₽');
+    expect(productMessage(getProduct('monthly')!).replace(/\s/g, ' ')).toContain(
+      'продление стоит 1 000 ₽ за каждые 30 дней',
+    );
+    expect(productMessage(getProduct('monthly')!, true, true).replace(/\s/g, ' ')).toContain(
+      'Стоимость: <b>1 000 ₽</b>',
+    );
   });
   it('shows terms and a direct payment URL without another checkout callback', () => {
     const product = getProduct('monthly')!;

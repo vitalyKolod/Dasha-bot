@@ -14,13 +14,14 @@ export async function renderProductCheckout(
   testCheckout = false,
 ): Promise<void> {
   if (!ctx.from) return;
+  const renewal = await ctx.services.payments.hasPaidBefore(String(ctx.from.id));
   const testAccess =
     ctx.config.PAYMENT_PROVIDER === 'robokassa' &&
     ctx.config.ROBOKASSA_TEST_MODE &&
     (testCheckout || ctx.config.adminIds.has(String(ctx.from.id)));
   if (ctx.config.CHECKLIST_MODE && !testAccess) {
     await renderScreen(ctx, {
-      text: productMessage(product, false),
+      text: productMessage(renewal ? getProduct('monthly')! : product, false, renewal),
       keyboard: productKeyboard(product.id, null, ctx.config),
     });
     return;
@@ -30,16 +31,15 @@ export async function renderProductCheckout(
     return;
   }
   const user = await ctx.services.users.touch(ctx.from);
-  const active = await ctx.services.subscriptions.getActive(String(ctx.from.id));
   const { payment } = await ctx.services.payments.createCheckout({
     userId: user._id,
     telegramId: String(ctx.from.id),
     productId: product.id,
-    renewal: Boolean(active),
   });
+  const checkoutProduct = getProduct(payment.productId)!;
   await renderScreen(ctx, {
-    text: productMessage(product),
-    keyboard: productKeyboard(product.id, payment.checkoutUrl!, ctx.config),
+    text: productMessage(checkoutProduct, true, payment.purpose === 'renewal'),
+    keyboard: productKeyboard(checkoutProduct.id, payment.checkoutUrl!, ctx.config),
   });
 }
 
@@ -47,8 +47,9 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
   bot.command('testpayment', async (ctx) => {
     if (!ctx.from || ctx.config.PAYMENT_PROVIDER !== 'robokassa' || !ctx.config.ROBOKASSA_TEST_MODE)
       return;
+    const renewal = await ctx.services.payments.hasPaidBefore(String(ctx.from.id));
     await ctx.reply('🧪 Тестовый платёж: деньги не списываются. Выберите тариф:', {
-      reply_markup: productsKeyboard(getActiveProducts(), 'testpayment'),
+      reply_markup: productsKeyboard(getActiveProducts(), 'testpayment', renewal),
     });
   });
   bot.callbackQuery(/^testpayment:([a-z0-9_-]+)$/, async (ctx) => {
@@ -88,13 +89,18 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
       return;
     }
     const products = getActiveProducts();
+    const renewal = ctx.from
+      ? await ctx.services.payments.hasPaidBefore(String(ctx.from.id))
+      : false;
     if (products.length === 1) {
       await renderProductCheckout(ctx, products[0]!);
       return;
     }
     await renderScreen(ctx, {
-      text: '🔍 <b>Выберите тариф</b>\n\nВсе тарифы открывают полный доступ к клубу.',
-      keyboard: productsKeyboard(products),
+      text: renewal
+        ? '🔍 <b>Продление клуба</b>\n\nДля тех, кто уже оплачивал доступ: 1 000 ₽ за 30 дней. Цена сохраняется после перерыва.'
+        : '🔍 <b>Выберите тариф</b>\n\nПервый доступ: 1 месяц — 2 000 ₽; 3 месяца — 3 000 ₽. После первой оплаты продление — 1 000 ₽ за 30 дней, даже после перерыва. Все тарифы открывают полный доступ к клубу.',
+      keyboard: productsKeyboard(products, 'product', renewal),
     });
   });
   bot.callbackQuery(/^product:([a-z0-9_-]+)$/, async (ctx) => {

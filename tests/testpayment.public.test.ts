@@ -17,7 +17,11 @@ function setup(testMode: boolean) {
   registerProductHandlers(bot);
   const reply = vi.fn().mockResolvedValue({});
   const createCheckout = vi.fn().mockResolvedValue({
-    payment: { checkoutUrl: 'https://auth.robokassa.ru/Merchant/Index.aspx' },
+    payment: {
+      checkoutUrl: 'https://auth.robokassa.ru/Merchant/Index.aspx',
+      productId: 'monthly',
+      purpose: 'new_subscription',
+    },
   });
   const ctx = {
     from: { id: 42 },
@@ -31,7 +35,7 @@ function setup(testMode: boolean) {
     services: {
       users: { touch: vi.fn().mockResolvedValue({ _id: 'user-id' }) },
       subscriptions: { getActive: vi.fn().mockResolvedValue(null) },
-      payments: { createCheckout },
+      payments: { createCheckout, hasPaidBefore: vi.fn().mockResolvedValue(false) },
     },
     reply,
     answerCallbackQuery: vi.fn().mockResolvedValue({}),
@@ -58,7 +62,6 @@ describe('/testpayment for a non-admin user', () => {
       userId: 'user-id',
       telegramId: '42',
       productId: 'monthly',
-      renewal: false,
     });
     const checkoutReply = reply.mock.calls[1] as unknown as [
       string,

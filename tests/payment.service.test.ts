@@ -5,6 +5,8 @@ import type { PaymentProvider } from '../src/modules/payments/PaymentProvider.js
 import type { SubscriptionService } from '../src/modules/subscriptions/subscription.service.js';
 import type { AppConfig } from '../src/config/env.js';
 import type { Logger } from 'pino';
+import { Types } from 'mongoose';
+import { PaymentModel } from '../src/modules/payments/payment.model.js';
 
 const event = { invoiceId: '42', amount: 99000, status: 'succeeded' as const, metadata: {} };
 function service(payment: Record<string, unknown>) {
@@ -54,5 +56,83 @@ describe('payment return lookup', () => {
     const { process, findByInvoice } = service(payment);
     await expect(process.findReturnPayment('42', '123')).resolves.toBe(payment);
     expect(findByInvoice).toHaveBeenCalledWith('robokassa', '123');
+  });
+});
+
+describe('checkout prices', () => {
+  async function checkout(productId: string, paidBefore: boolean, testMode = true) {
+    const hasSucceededPayment = vi.fn().mockResolvedValue(paidBefore);
+    let created: Record<string, unknown> = {};
+    const create = vi.fn((data: Record<string, unknown>) => {
+      created = { ...data, _id: new Types.ObjectId() };
+      return Promise.resolve(created);
+    });
+    const setCheckout = vi.fn((_id: string, checkoutUrl: string) =>
+      Promise.resolve({ ...created, checkoutUrl }),
+    );
+    const providerCheckout = vi.fn().mockResolvedValue({
+      checkoutUrl: 'https://example.org/checkout',
+      providerInvoiceId: '123',
+    });
+    const payments = { hasSucceededPayment, create, setCheckout } as unknown as PaymentRepository;
+    const process = new PaymentService(
+      { name: 'robokassa', createCheckout: providerCheckout } as unknown as PaymentProvider,
+      {
+        ROBOKASSA_TEST_MODE: testMode,
+        PAYMENT_RETURN_TOKEN_TTL_MINUTES: 60,
+        PUBLIC_BASE_URL: 'https://pay.example.org',
+        OFFER_VERSION: '1',
+      } as AppConfig,
+      { info: vi.fn() } as unknown as Logger,
+      payments,
+      {} as SubscriptionService,
+    );
+    vi.spyOn(process.returnTokens, 'create').mockResolvedValue('token');
+    await process.createCheckout({
+      userId: new Types.ObjectId(),
+      telegramId: '42',
+      productId,
+    });
+    return { created, providerCheckout, hasSucceededPayment };
+  }
+
+  it('charges the first purchase according to the selected tariff', async () => {
+    const monthly = await checkout('monthly', false);
+    const quarterly = await checkout('quarterly', false);
+    expect(monthly.created).toMatchObject({
+      productId: 'monthly',
+      amount: 200000,
+      purpose: 'new_subscription',
+      testMode: true,
+    });
+    expect(quarterly.created).toMatchObject({
+      productId: 'quarterly',
+      amount: 300000,
+      purpose: 'new_subscription',
+    });
+  });
+
+  it('charges a previous payer 1,000 ₽ for 30 days regardless of selected tariff', async () => {
+    const renewal = await checkout('quarterly', true);
+    expect(renewal.created).toMatchObject({
+      productId: 'monthly',
+      amount: 100000,
+      purpose: 'renewal',
+    });
+    expect(renewal.providerCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 100000 }),
+    );
+  });
+
+  it('does not grant the live discount from test payments', async () => {
+    const exists = vi.spyOn(PaymentModel, 'exists').mockResolvedValueOnce(null);
+    const payments = new (
+      await import('../src/modules/payments/payment.repository.js')
+    ).PaymentRepository();
+    expect(await payments.hasSucceededPayment('robokassa', '42', false)).toBe(false);
+    expect(exists).toHaveBeenCalledWith(
+      expect.objectContaining({ testMode: false, status: 'succeeded' }),
+    );
+    exists.mockRestore();
   });
 });

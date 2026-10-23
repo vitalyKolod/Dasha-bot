@@ -3,8 +3,17 @@ import type { Product } from '../../../config/products.js';
 import type { AppConfig } from '../../../config/env.js';
 import { formatMoney } from '../helpers/formatMoney.js';
 
-export const productsKeyboard = (products: readonly Product[], callbackPrefix = 'product') => {
+export const productsKeyboard = (
+  products: readonly Product[],
+  callbackPrefix = 'product',
+  renewal = false,
+) => {
   const keyboard = new InlineKeyboard();
+  if (renewal)
+    return keyboard
+      .text('Продлить на 1 месяц — 1 000 ₽', `${callbackPrefix}:monthly`)
+      .row()
+      .text('← Назад', 'menu');
   products.forEach((product) =>
     keyboard
       .text(`${product.title} — ${formatMoney(product.price)}`, `${callbackPrefix}:${product.id}`)
