@@ -4,17 +4,25 @@ import { getProduct } from '../../config/products.js';
 import { formatDate } from '../ui/helpers/formatDate.js';
 import { renderScreen } from '../ui/renderScreen.js';
 
-export async function showAccount(ctx: BotContext, refreshInvite = false): Promise<void> {
+export async function showAccount(
+  ctx: BotContext,
+  refreshInvite = false,
+  newMessage = false,
+): Promise<void> {
   if (!ctx.from) return;
   const subscription = await ctx.services.subscriptions.getActive(String(ctx.from.id));
   if (!subscription) {
-    await renderScreen(ctx, {
-      text: '👤 <b>Мой аккаунт</b>\n\nАктивного доступа сейчас нет.',
-      keyboard: new InlineKeyboard()
-        .text('🍳 Посмотреть тарифы', 'products')
-        .row()
-        .text('← Назад', 'menu'),
-    });
+    await renderScreen(
+      ctx,
+      {
+        text: '👤 <b>Мой аккаунт</b>\n\nАктивного доступа сейчас нет.',
+        keyboard: new InlineKeyboard()
+          .text('🍳 Посмотреть тарифы', 'products')
+          .row()
+          .text('← Назад', 'menu'),
+      },
+      newMessage,
+    );
     return;
   }
 
@@ -32,13 +40,18 @@ export async function showAccount(ctx: BotContext, refreshInvite = false): Promi
       .row();
   if (!access?.member) keyboard.text('🔄 Обновить ссылку', 'subscription:refresh').row();
   keyboard.text('🏠 Главное меню', 'menu');
-  await renderScreen(ctx, {
-    text: `👤 <b>Мой аккаунт</b>\n\n🟢 Доступ активен\n🍳 Тариф: <b>${product?.title ?? subscription.productId}</b>\n📅 Оплачено до: <b>${subscription.expiresAt ? formatDate(subscription.expiresAt) : 'навсегда'}</b>\n\n${access?.member ? '✅ Вы уже в закрытой группе.' : access ? '🔐 Вступить в группу можно по кнопке ниже. Заявку одобрит бот только для вашего аккаунта.' : 'Ссылка временно недоступна. Нажмите «Обновить ссылку».'}`,
-    keyboard,
-  });
+  await renderScreen(
+    ctx,
+    {
+      text: `👤 <b>Мой аккаунт</b>\n\n🟢 Доступ активен\n🍳 Тариф: <b>${product?.title ?? subscription.productId}</b>\n📅 Оплачено до: <b>${subscription.expiresAt ? formatDate(subscription.expiresAt) : 'навсегда'}</b>\n\n${access?.member ? '✅ Вы уже в закрытой группе.' : access ? '🔐 Вступить в группу можно по кнопке ниже. Заявку одобрит бот только для вашего аккаунта.' : 'Ссылка временно недоступна. Нажмите «Обновить ссылку».'}`,
+      keyboard,
+    },
+    newMessage,
+  );
 }
 
 export function registerSubscriptionHandler(bot: Bot<BotContext>): void {
   bot.callbackQuery('subscription', async (ctx) => showAccount(ctx));
+  bot.callbackQuery('receipt:subscription', async (ctx) => showAccount(ctx, false, true));
   bot.callbackQuery('subscription:refresh', async (ctx) => showAccount(ctx, true));
 }

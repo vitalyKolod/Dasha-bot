@@ -28,7 +28,7 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
             : '⏳ Ждём подтверждения Robokassa. Доступ придёт сюда автоматически. Повторно оплачивать пока не нужно.';
       const keyboard =
         payment?.status === 'succeeded' && payment.processedAt
-          ? new InlineKeyboard().text('👤 Мой аккаунт', 'subscription')
+          ? new InlineKeyboard().text('👤 Мой аккаунт', 'receipt:subscription')
           : undefined;
       try {
         await ctx.api.editMessageText(checking.chat.id, checking.message_id, text, {
@@ -63,8 +63,8 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
             keyboard
               .url(access.member ? '🍳 Открыть клуб' : '👉 Вступить в закрытый клуб', access.url)
               .row();
-          keyboard.text('👤 Мой аккаунт', 'subscription').row();
-          keyboard.text('🏠 Главное меню', 'menu');
+          keyboard.text('👤 Мой аккаунт', 'receipt:subscription').row();
+          keyboard.text('🏠 Главное меню', 'receipt:menu');
           await ctx.reply(
             `🎉 <b>Оплата прошла!</b>\n\nДобро пожаловать в клуб 💛\n\nТвой доступ активен: <b>${subscription.expiresAt ? `до ${formatDate(subscription.expiresAt)}` : 'навсегда'}</b>`,
             { parse_mode: 'HTML', reply_markup: keyboard },

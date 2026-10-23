@@ -39,9 +39,9 @@ export class PaymentDeliveryService {
           const keyboard = new InlineKeyboard()
             .url(access.member ? '🍳 Открыть клуб' : '👉 Вступить в закрытый клуб', access.url)
             .row()
-            .text('👤 Мой аккаунт', 'subscription')
+            .text('👤 Мой аккаунт', 'receipt:subscription')
             .row()
-            .text('🏠 Главное меню', 'menu');
+            .text('🏠 Главное меню', 'receipt:menu');
           await this.bot.api.sendMessage(
             Number(payment.telegramId),
             `🎉 <b>Оплата прошла!</b>\n\nДобро пожаловать в клуб 💛\n\nТвой доступ активен: <b>${subscription.expiresAt ? `до ${formatDate(subscription.expiresAt)}` : 'навсегда'}</b>`,

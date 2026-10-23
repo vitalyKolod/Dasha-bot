@@ -11,8 +11,12 @@ const isNotModified = (error: unknown): boolean =>
   error instanceof GrammyError &&
   error.description.toLowerCase().includes('message is not modified');
 
-/** Renders callback navigation in place and falls back to a new text message when editing is impossible. */
-export async function renderScreen(ctx: BotContext, screen: Screen): Promise<void> {
+/** Renders callback navigation in place, except for payment confirmations kept in chat history. */
+export async function renderScreen(
+  ctx: BotContext,
+  screen: Screen,
+  newMessage = false,
+): Promise<void> {
   const options = {
     parse_mode: screen.parseMode ?? ('HTML' as const),
     ...(screen.keyboard ? { reply_markup: screen.keyboard } : {}),
@@ -23,9 +27,20 @@ export async function renderScreen(ctx: BotContext, screen: Screen): Promise<voi
       ctx.logger.debug({ err: error }, 'Callback query was already answered or expired');
     });
 
-    if (ctx.callbackQuery.message) {
+    const message = ctx.callbackQuery.message;
+    const messageText = message
+      ? 'text' in message
+        ? message.text
+        : 'caption' in message
+          ? message.caption
+          : undefined
+      : undefined;
+    const isPaymentConfirmation =
+      typeof messageText === 'string' &&
+      /^(🎉 Оплата прошла!|✅ Оплата подтверждена\.)/.test(messageText);
+
+    if (message && !newMessage && !isPaymentConfirmation) {
       try {
-        const message = ctx.callbackQuery.message;
         if ('photo' in message || 'video' in message) {
           await ctx.editMessageCaption({ caption: screen.text, ...options });
         } else {

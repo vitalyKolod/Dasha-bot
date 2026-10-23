@@ -32,9 +32,9 @@ export async function buildWelcomeScreen(ctx: BotContext): Promise<Screen | null
   };
 }
 
-export async function showMainMenu(ctx: BotContext): Promise<void> {
+export async function showMainMenu(ctx: BotContext, newMessage = false): Promise<void> {
   const screen = await buildWelcomeScreen(ctx);
-  if (screen) await renderScreen(ctx, screen);
+  if (screen) await renderScreen(ctx, screen, newMessage);
 }
 
 export async function sendWelcome(ctx: BotContext): Promise<void> {
@@ -55,5 +55,8 @@ export async function sendWelcome(ctx: BotContext): Promise<void> {
 export function registerMenuHandlers(bot: Bot<BotContext>): void {
   bot.callbackQuery('menu', async (ctx) => {
     await showMainMenu(ctx);
+  });
+  bot.callbackQuery('receipt:menu', async (ctx) => {
+    await showMainMenu(ctx, true);
   });
 }

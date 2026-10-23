@@ -33,6 +33,15 @@ describe('paid invitation delivery', () => {
     const { worker, markDelivered, retryDelivery, sendMessage } = setup(false);
     await worker.runOnce();
     expect(sendMessage).toHaveBeenCalledOnce();
+    const options = (sendMessage.mock.calls[0] as unknown[])[2] as {
+      reply_markup: { inline_keyboard: { callback_data?: string }[][] };
+    };
+    expect(options.reply_markup.inline_keyboard.flat()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ callback_data: 'receipt:subscription' }),
+        expect.objectContaining({ callback_data: 'receipt:menu' }),
+      ]),
+    );
     expect(markDelivered).toHaveBeenCalledWith('payment');
     expect(retryDelivery).not.toHaveBeenCalled();
   });

@@ -34,8 +34,8 @@ export function registerPaymentHandlers(bot: Bot<BotContext>): void {
         keyboard
           .url(access.member ? '🍳 Открыть клуб' : '👉 Вступить в закрытый клуб', access.url)
           .row();
-      keyboard.text('👤 Мой аккаунт', 'subscription').row();
-      keyboard.text('🏠 Главное меню', 'menu');
+      keyboard.text('👤 Мой аккаунт', 'receipt:subscription').row();
+      keyboard.text('🏠 Главное меню', 'receipt:menu');
       await renderScreen(ctx, {
         text: `🎉 <b>Оплата прошла!</b>\n\nДобро пожаловать в клуб 💛${subscription ? `\n\nТвой доступ активен: <b>${subscription.expiresAt ? `до ${formatDate(subscription.expiresAt)}` : 'навсегда'}</b>` : ''}`,
         keyboard,
