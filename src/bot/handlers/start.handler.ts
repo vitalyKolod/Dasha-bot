@@ -26,10 +26,16 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
           : ['canceled', 'failed', 'refunded'].includes(payment.status)
             ? '❌ Оплата не подтверждена. Если деньги списались, обратитесь в поддержку.'
             : '⏳ Ждём подтверждения Robokassa. Доступ придёт сюда автоматически. Повторно оплачивать пока не нужно.';
+      const keyboard =
+        payment?.status === 'succeeded' && payment.processedAt
+          ? new InlineKeyboard().text('👤 Мой аккаунт', 'subscription')
+          : undefined;
       try {
-        await ctx.api.editMessageText(checking.chat.id, checking.message_id, text);
+        await ctx.api.editMessageText(checking.chat.id, checking.message_id, text, {
+          ...(keyboard ? { reply_markup: keyboard } : {}),
+        });
       } catch {
-        await ctx.reply(text);
+        await ctx.reply(text, keyboard ? { reply_markup: keyboard } : {});
       }
       return;
     }
@@ -49,11 +55,15 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
       }
       if (payment.status === 'succeeded') {
         await ctx.services.payments.processSuccess(String(payment._id));
-        const subscription = await ctx.services.subscriptions.get(String(ctx.from.id));
+        const subscription = await ctx.services.subscriptions.getActive(String(ctx.from.id));
         if (subscription) {
-          const invite = await ctx.services.access.getOrCreateValidInvite(subscription);
+          const access = await ctx.services.access.getClubAccess(subscription);
           const keyboard = new InlineKeyboard();
-          if (invite) keyboard.url('👉 Вступить в закрытый клуб', invite).row();
+          if (access)
+            keyboard
+              .url(access.member ? '🍳 Открыть клуб' : '👉 Вступить в закрытый клуб', access.url)
+              .row();
+          keyboard.text('👤 Мой аккаунт', 'subscription').row();
           keyboard.text('🏠 Главное меню', 'menu');
           await ctx.reply(
             `🎉 <b>Оплата прошла!</b>\n\nДобро пожаловать в клуб 💛\n\nТвой доступ активен: <b>${subscription.expiresAt ? `до ${formatDate(subscription.expiresAt)}` : 'навсегда'}</b>`,

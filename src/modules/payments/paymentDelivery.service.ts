@@ -32,12 +32,14 @@ export class PaymentDeliveryService {
         const payment = await this.payments.claimDelivery();
         if (!payment) break;
         try {
-          const subscription = await this.subscriptions.get(payment.telegramId);
+          const subscription = await this.subscriptions.getActive(payment.telegramId);
           if (!subscription) throw new Error('Subscription missing for paid order');
-          const invite = await this.access.getOrCreateValidInvite(subscription);
-          if (!invite) throw new Error('Private club chat is not configured');
+          const access = await this.access.getClubAccess(subscription);
+          if (!access) throw new Error('Private club chat is not configured');
           const keyboard = new InlineKeyboard()
-            .url('👉 Вступить в закрытый клуб', invite)
+            .url(access.member ? '🍳 Открыть клуб' : '👉 Вступить в закрытый клуб', access.url)
+            .row()
+            .text('👤 Мой аккаунт', 'subscription')
             .row()
             .text('🏠 Главное меню', 'menu');
           await this.bot.api.sendMessage(
@@ -52,7 +54,10 @@ export class PaymentDeliveryService {
         } catch (error) {
           await this.payments.retryDelivery(String(payment._id), payment.deliveryAttempts ?? 1);
           this.logger.warn(
-            { err: error, payment: payment.publicId },
+            {
+              errorType: error instanceof Error ? error.name : 'unknown',
+              payment: payment.publicId,
+            },
             'Payment invitation delivery failed; retry scheduled',
           );
         }

@@ -59,10 +59,19 @@ export function createBot(
     if (ctx.callbackQuery) {
       const data = ctx.callbackQuery.data ?? '';
       if (
+        (data === 'subscription' || data === 'subscription:refresh' || /^check:/.test(data)) &&
+        ctx.from &&
+        (await ctx.services.subscriptions.getActive(String(ctx.from.id)))
+      ) {
+        await next();
+        return;
+      }
+      if (
         /^(?:checklist|menu|inside|products|product:[a-z0-9_-]+|terms:[a-z0-9_-]+|checkout:[a-z0-9_-]+|legal(?::[a-z0-9_-]+)?|legal-document:(?:offer|license|privacy|consent))$/.test(
           data,
         ) ||
-        (testPaymentsOpen && /^testpayment:[a-z0-9_-]+$/.test(data))
+        (testPaymentsOpen && /^testpayment:[a-z0-9_-]+$/.test(data)) ||
+        /^check:[0-9a-f-]{36}$/.test(data)
       )
         await next();
       else await showMainMenu(ctx);

@@ -4,9 +4,16 @@ import type { BotContext } from '../context.js';
 import { startMessage, waitlistMessage } from '../ui/messages/start.message.js';
 import { mainKeyboard } from '../ui/keyboards/main.keyboard.js';
 import { renderScreen, type Screen } from '../ui/renderScreen.js';
+import { formatDate } from '../ui/helpers/formatDate.js';
 
 export async function buildWelcomeScreen(ctx: BotContext): Promise<Screen | null> {
   if (!ctx.from) return null;
+  const subscription = await ctx.services.subscriptions.getActive(String(ctx.from.id));
+  if (subscription)
+    return {
+      text: `💛 <b>Добро пожаловать в клуб!</b>\n\nДоступ активен ${subscription.expiresAt ? `до <b>${formatDate(subscription.expiresAt)}</b>` : '<b>навсегда</b>'}.\nОткрой «Мой аккаунт», чтобы перейти в закрытую группу.`,
+      keyboard: mainKeyboard(true, ctx.config),
+    };
   if (ctx.config.CHECKLIST_MODE)
     return {
       text: checklistWelcome,
@@ -19,13 +26,9 @@ export async function buildWelcomeScreen(ctx: BotContext): Promise<Screen | null
         .row()
         .text('📄 Информация и условия', 'legal'),
     };
-  const subscription = await ctx.services.subscriptions.getActive(String(ctx.from.id));
-  const invite = subscription
-    ? await ctx.services.access.getOrCreateValidInvite(subscription)
-    : undefined;
   return {
     text: ctx.config.PRE_REGISTRATION ? waitlistMessage : startMessage,
-    keyboard: mainKeyboard(Boolean(subscription), ctx.config, invite),
+    keyboard: mainKeyboard(false, ctx.config),
   };
 }
 

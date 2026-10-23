@@ -1,4 +1,4 @@
-import type { Bot } from 'grammy';
+import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotContext } from '../context.js';
 import { SubscriptionRepository } from '../../modules/subscriptions/subscription.repository.js';
 
@@ -21,8 +21,21 @@ export function registerAccessHandlers(
     await subscriptions.clearInvite(telegramId, link);
     try {
       await ctx.api.revokeChatInviteLink(request.chat.id, link);
-    } catch (error) {
-      ctx.logger.warn({ err: error, telegramId }, 'Used invite could not be revoked');
+    } catch {
+      ctx.logger.warn({ telegramId }, 'Used invite could not be revoked');
+    }
+    try {
+      const keyboard = new InlineKeyboard();
+      const clubId = /^-100(\d+)$/.exec(ctx.config.PRIVATE_CLUB_CHAT_ID)?.[1];
+      if (clubId) keyboard.url('🍳 Открыть клуб', `https://t.me/c/${clubId}/1`).row();
+      keyboard.text('👤 Мой аккаунт', 'subscription');
+      await ctx.api.sendMessage(
+        request.from.id,
+        '✅ Вход в закрытый клуб подтверждён. Приятного знакомства с материалами! 💛',
+        { reply_markup: keyboard },
+      );
+    } catch {
+      ctx.logger.warn({ telegramId }, 'Club access confirmation could not be sent');
     }
   });
 }

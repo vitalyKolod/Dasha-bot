@@ -50,6 +50,7 @@ describe('/start routing', () => {
       42,
       7,
       expect.stringContaining('Оплата подтверждена'),
+      expect.objectContaining({ reply_markup: expect.any(Object) as object }),
     );
   });
   it('tells the buyer to wait for the webhook when confirmation is pending', async () => {
@@ -62,6 +63,7 @@ describe('/start routing', () => {
       42,
       7,
       expect.stringContaining('Повторно оплачивать пока не нужно'),
+      {},
     );
   });
   it('replaces old deep links with checklist welcome in launch mode', async () => {
@@ -69,7 +71,7 @@ describe('/start routing', () => {
     ctx.config.CHECKLIST_MODE = true;
     await start(ctx);
     expect(findByToken).not.toHaveBeenCalled();
-    expect(getActive).not.toHaveBeenCalled();
+    expect(getActive).toHaveBeenCalledWith('42');
     expect(reply.mock.calls[0]?.[0]).toContain('подготовки твоей морозилки');
   });
   it('keeps pay_ links on the existing payment path', async () => {

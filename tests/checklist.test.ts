@@ -37,7 +37,21 @@ describe('checklist launch', () => {
     await sendWelcome(ctx);
     expect(reply).toHaveBeenCalledWith(checklistWelcome, expect.any(Object));
     expect(replyWithPhoto).not.toHaveBeenCalled();
-    expect(getActive).not.toHaveBeenCalled();
+    expect(getActive).toHaveBeenCalledWith('42');
+  });
+  it('shows the account instead of a new purchase to a paid user in launch mode', async () => {
+    const { ctx, reply, getActive } = context();
+    getActive.mockResolvedValue({ productId: 'monthly', expiresAt: new Date('2026-11-22') });
+    await sendWelcome(ctx);
+    expect(reply.mock.calls[0]?.[0]).toContain('Доступ активен');
+    const options = reply.mock.calls[0]?.[1] as { reply_markup: InlineKeyboard };
+    expect(options.reply_markup.inline_keyboard.flat()).toContainEqual({
+      text: '👤 Мой аккаунт',
+      callback_data: 'subscription',
+    });
+    expect(options.reply_markup.inline_keyboard.flat()).not.toContainEqual(
+      expect.objectContaining({ callback_data: 'products' }),
+    );
   });
   it('sends the full checklist with links to club details and documents', async () => {
     const { ctx, reply, touch, answerCallbackQuery } = context();
@@ -72,7 +86,10 @@ describe('checklist launch', () => {
     const ctx = {
       from: { id: 42 },
       config: { CHECKLIST_MODE: true, PRE_REGISTRATION: true },
-      services: { payments: { createCheckout, hasPaidBefore: vi.fn().mockResolvedValue(false) } },
+      services: {
+        payments: { createCheckout, hasPaidBefore: vi.fn().mockResolvedValue(false) },
+        subscriptions: { getActive: vi.fn().mockResolvedValue(null) },
+      },
       reply,
     } as unknown as BotContext;
     await renderProductCheckout(ctx, getProduct('monthly')!);

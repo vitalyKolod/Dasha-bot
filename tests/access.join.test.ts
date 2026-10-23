@@ -17,6 +17,7 @@ function setup(active: { inviteLink: string } | null) {
   const approveChatJoinRequest = vi.fn().mockResolvedValue(true);
   const declineChatJoinRequest = vi.fn().mockResolvedValue(true);
   const revokeChatInviteLink = vi.fn().mockResolvedValue({});
+  const sendMessage = vi.fn().mockResolvedValue({});
   const ctx = {
     chatJoinRequest: {
       chat: { id: -1004334407084 },
@@ -25,7 +26,7 @@ function setup(active: { inviteLink: string } | null) {
     },
     config: { PRIVATE_CLUB_CHAT_ID: '-1004334407084' },
     services: { subscriptions: { getActive: vi.fn().mockResolvedValue(active) } },
-    api: { approveChatJoinRequest, declineChatJoinRequest, revokeChatInviteLink },
+    api: { approveChatJoinRequest, declineChatJoinRequest, revokeChatInviteLink, sendMessage },
     logger: { warn: vi.fn() },
   } as unknown as BotContext;
   return {
@@ -33,6 +34,7 @@ function setup(active: { inviteLink: string } | null) {
     approveChatJoinRequest,
     declineChatJoinRequest,
     revokeChatInviteLink,
+    sendMessage,
     clearInvite,
   };
 }
@@ -45,12 +47,18 @@ describe('club join requests', () => {
       declineChatJoinRequest,
       revokeChatInviteLink,
       clearInvite,
+      sendMessage,
     } = setup({ inviteLink: 'https://t.me/+paid' });
     await run();
     expect(approveChatJoinRequest).toHaveBeenCalledWith(-1004334407084, 123);
     expect(clearInvite).toHaveBeenCalledWith('123', 'https://t.me/+paid');
     expect(revokeChatInviteLink).toHaveBeenCalledWith(-1004334407084, 'https://t.me/+paid');
     expect(declineChatJoinRequest).not.toHaveBeenCalled();
+    expect(sendMessage).toHaveBeenCalledWith(
+      123,
+      expect.stringContaining('Вход в закрытый клуб подтверждён'),
+      expect.objectContaining({ reply_markup: expect.any(Object) as object }),
+    );
   });
   it('declines a forwarded link used by another subscriber', async () => {
     const { run, approveChatJoinRequest, declineChatJoinRequest, clearInvite } = setup({

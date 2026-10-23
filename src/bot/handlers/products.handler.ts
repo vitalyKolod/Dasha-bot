@@ -7,6 +7,7 @@ import { insideMessage } from '../ui/messages/start.message.js';
 import { InlineKeyboard } from 'grammy';
 import { showWaitlist } from './waitlist.handler.js';
 import { renderScreen } from '../ui/renderScreen.js';
+import { showAccount } from './subscription.handler.js';
 
 export async function renderProductCheckout(
   ctx: BotContext,
@@ -14,6 +15,10 @@ export async function renderProductCheckout(
   testCheckout = false,
 ): Promise<void> {
   if (!ctx.from) return;
+  if (!testCheckout && (await ctx.services.subscriptions.getActive(String(ctx.from.id)))) {
+    await showAccount(ctx);
+    return;
+  }
   const testAccess =
     ctx.config.PAYMENT_PROVIDER === 'robokassa' &&
     ctx.config.ROBOKASSA_TEST_MODE &&
@@ -60,22 +65,35 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
     await renderProductCheckout(ctx, product, true);
   });
   bot.callbackQuery('inside', async (ctx) => {
+    const active = ctx.from
+      ? await ctx.services.subscriptions.getActive(String(ctx.from.id))
+      : null;
     await renderScreen(ctx, {
       text: insideMessage,
       keyboard: new InlineKeyboard()
         .text(
-          ctx.config.CHECKLIST_MODE
-            ? '🔍 Клуб и тарифы'
-            : ctx.config.PRE_REGISTRATION
-              ? '❤️ ЖДУ ОТКРЫТИЯ'
-              : '🍳 Вступить в клуб',
-          ctx.config.CHECKLIST_MODE || !ctx.config.PRE_REGISTRATION ? 'products' : 'waitlist',
+          active
+            ? '👤 Мой аккаунт'
+            : ctx.config.CHECKLIST_MODE
+              ? '🔍 Клуб и тарифы'
+              : ctx.config.PRE_REGISTRATION
+                ? '❤️ ЖДУ ОТКРЫТИЯ'
+                : '🍳 Вступить в клуб',
+          active
+            ? 'subscription'
+            : ctx.config.CHECKLIST_MODE || !ctx.config.PRE_REGISTRATION
+              ? 'products'
+              : 'waitlist',
         )
         .row()
         .text('← Назад', 'menu'),
     });
   });
   bot.callbackQuery('products', async (ctx) => {
+    if (ctx.from && (await ctx.services.subscriptions.getActive(String(ctx.from.id)))) {
+      await showAccount(ctx);
+      return;
+    }
     if (
       ctx.config.PRE_REGISTRATION &&
       !ctx.config.CHECKLIST_MODE &&

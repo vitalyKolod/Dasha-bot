@@ -15,17 +15,17 @@ function setup(fails: boolean) {
   const sendMessage = fails
     ? vi.fn().mockRejectedValue(new Error('Telegram unavailable'))
     : vi.fn().mockResolvedValue({});
-  const getOrCreateValidInvite = vi.fn().mockResolvedValue('https://t.me/+invite');
+  const getClubAccess = vi.fn().mockResolvedValue({ url: 'https://t.me/+invite', member: false });
   const worker = new PaymentDeliveryService(
     { api: { sendMessage } } as unknown as Bot<BotContext>,
-    { getOrCreateValidInvite } as unknown as AccessService,
+    { getClubAccess } as unknown as AccessService,
     { warn: vi.fn(), error: vi.fn() } as unknown as Logger,
     { claimDelivery, markDelivered, retryDelivery } as unknown as PaymentRepository,
     {
-      get: vi.fn().mockResolvedValue({ expiresAt: new Date('2026-11-22') }),
+      getActive: vi.fn().mockResolvedValue({ expiresAt: new Date('2026-11-22') }),
     } as unknown as SubscriptionService,
   );
-  return { worker, markDelivered, retryDelivery, sendMessage, getOrCreateValidInvite };
+  return { worker, markDelivered, retryDelivery, sendMessage, getClubAccess };
 }
 
 describe('paid invitation delivery', () => {

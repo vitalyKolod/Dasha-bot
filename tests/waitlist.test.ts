@@ -48,7 +48,10 @@ describe('pre-registration', () => {
     const ctx = {
       from: { id: 42 },
       config: { PRE_REGISTRATION: true },
-      services: { payments: { createCheckout } },
+      services: {
+        payments: { createCheckout },
+        subscriptions: { getActive: vi.fn().mockResolvedValue(null) },
+      },
       reply,
     } as unknown as BotContext;
     await renderProductCheckout(ctx, getProduct('monthly')!);

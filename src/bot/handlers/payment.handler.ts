@@ -26,11 +26,15 @@ export function registerPaymentHandlers(bot: Bot<BotContext>): void {
       const subscription = ctx.from
         ? await ctx.services.subscriptions.getActive(String(ctx.from.id))
         : null;
-      const invite = subscription
-        ? await ctx.services.access.getOrCreateValidInvite(subscription)
+      const access = subscription
+        ? await ctx.services.access.getClubAccess(subscription)
         : undefined;
       const keyboard = new InlineKeyboard();
-      if (invite) keyboard.url('👉 Вступить в закрытый клуб', invite).row();
+      if (access)
+        keyboard
+          .url(access.member ? '🍳 Открыть клуб' : '👉 Вступить в закрытый клуб', access.url)
+          .row();
+      keyboard.text('👤 Мой аккаунт', 'subscription').row();
       keyboard.text('🏠 Главное меню', 'menu');
       await renderScreen(ctx, {
         text: `🎉 <b>Оплата прошла!</b>\n\nДобро пожаловать в клуб 💛${subscription ? `\n\nТвой доступ активен: <b>${subscription.expiresAt ? `до ${formatDate(subscription.expiresAt)}` : 'навсегда'}</b>` : ''}`,

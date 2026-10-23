@@ -1,8 +1,8 @@
 import { InlineKeyboard } from 'grammy';
 import type { AppConfig } from '../../../config/env.js';
-export function mainKeyboard(active: boolean, config: AppConfig, invite?: string) {
+export function mainKeyboard(active: boolean, config: AppConfig) {
   const keyboard = new InlineKeyboard();
-  if (active && invite) keyboard.url('🍳 Перейти в клуб', invite).row();
+  if (active) keyboard.text('👤 Мой аккаунт', 'subscription').row();
   else
     keyboard
       .text(
@@ -10,9 +10,7 @@ export function mainKeyboard(active: boolean, config: AppConfig, invite?: string
         config.PRE_REGISTRATION ? 'waitlist' : 'products',
       )
       .row();
-  if (active && !config.PRE_REGISTRATION)
-    keyboard.text('✅ Моя подписка', 'subscription').text('💳 Продлить доступ', 'products').row();
-  else keyboard.text('✨ Что внутри', 'inside').row();
+  keyboard.text('✨ Что внутри', 'inside').row();
   keyboard.text('📄 Информация и условия', 'legal').row();
   if (config.SUPPORT_USERNAME)
     keyboard.url('💬 Задать вопрос', `https://t.me/${config.SUPPORT_USERNAME.replace(/^@/, '')}`);
