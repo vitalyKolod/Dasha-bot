@@ -22,6 +22,17 @@ function service(payment: Record<string, unknown>) {
 }
 
 describe('verified payment checks', () => {
+  it('rejects a test callback for a live order', async () => {
+    const { process } = service({
+      _id: 'id',
+      amount: 99000,
+      status: 'pending',
+      testMode: false,
+    });
+    await expect(
+      process.handleVerifiedEvent({ ...event, metadata: { testMode: true } }),
+    ).rejects.toThrow('Payment mode mismatch');
+  });
   it('rejects an amount different from the stored order', async () => {
     const { process } = service({ _id: 'id', amount: 99000, status: 'pending' });
     await expect(process.handleVerifiedEvent({ ...event, amount: 100 })).rejects.toThrow(
@@ -60,7 +71,12 @@ describe('payment return lookup', () => {
 });
 
 describe('checkout prices', () => {
-  async function checkout(productId: string, paidBefore: boolean, testMode = true) {
+  async function checkout(
+    productId: string,
+    paidBefore: boolean,
+    testMode = true,
+    livePilot = false,
+  ) {
     const hasSucceededPayment = vi.fn().mockResolvedValue(paidBefore);
     let created: Record<string, unknown> = {};
     const create = vi.fn((data: Record<string, unknown>) => {
@@ -78,7 +94,9 @@ describe('checkout prices', () => {
     const process = new PaymentService(
       { name: 'robokassa', createCheckout: providerCheckout } as unknown as PaymentProvider,
       {
+        PAYMENT_PROVIDER: 'robokassa',
         ROBOKASSA_TEST_MODE: testMode,
+        ROBOKASSA_LIVE_PILOT_ENABLED: livePilot,
         PAYMENT_RETURN_TOKEN_TTL_MINUTES: 60,
         PUBLIC_BASE_URL: 'https://pay.example.org',
         OFFER_VERSION: '1',
@@ -92,6 +110,7 @@ describe('checkout prices', () => {
       userId: new Types.ObjectId(),
       telegramId: '42',
       productId,
+      ...(livePilot ? { livePilot: true } : {}),
     });
     return { created, providerCheckout, hasSucceededPayment };
   }
@@ -131,8 +150,25 @@ describe('checkout prices', () => {
     ).PaymentRepository();
     expect(await payments.hasSucceededPayment('robokassa', '42', false)).toBe(false);
     expect(exists).toHaveBeenCalledWith(
-      expect.objectContaining({ testMode: false, status: 'succeeded' }),
+      expect.objectContaining({
+        testMode: false,
+        status: 'succeeded',
+        isPilotPayment: { $ne: true },
+      }),
     );
     exists.mockRestore();
+  });
+
+  it('charges exactly 50 ₽ for the live pilot monthly checkout', async () => {
+    const pilot = await checkout('monthly', false, false, true);
+    expect(pilot.created).toMatchObject({
+      productId: 'monthly',
+      amount: 5000,
+      testMode: false,
+      isPilotPayment: true,
+      purpose: 'new_subscription',
+    });
+    expect(pilot.providerCheckout).toHaveBeenCalledWith(expect.objectContaining({ amount: 5000 }));
+    expect(pilot.hasSucceededPayment).toHaveBeenCalledWith('robokassa', '42', false);
   });
 });

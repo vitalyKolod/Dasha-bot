@@ -1,5 +1,4 @@
 import { InlineKeyboard, type Bot } from 'grammy';
-import { checklistWelcome } from '../ui/messages/checklist.message.js';
 import type { BotContext } from '../context.js';
 import { startMessage, waitlistMessage } from '../ui/messages/start.message.js';
 import { mainKeyboard } from '../ui/keyboards/main.keyboard.js';
@@ -16,10 +15,8 @@ export async function buildWelcomeScreen(ctx: BotContext): Promise<Screen | null
     };
   if (ctx.config.CHECKLIST_MODE)
     return {
-      text: checklistWelcome,
+      text: startMessage,
       keyboard: new InlineKeyboard()
-        .text('❄️ Получить чек-лист', 'checklist')
-        .row()
         .text('🔍 Вступить в клуб', 'products')
         .row()
         .text('✨ Что внутри', 'inside')

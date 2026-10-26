@@ -17,6 +17,7 @@ export interface Payment {
   status: PaymentStatus;
   purpose: PaymentPurpose;
   testMode?: boolean;
+  isPilotPayment?: boolean;
   checkoutUrl?: string;
   termsAcceptedAt: Date;
   offerVersion: string;
@@ -50,6 +51,7 @@ const schema = new Schema<Payment>(
     },
     purpose: { type: String, required: true, enum: ['new_subscription', 'renewal'] },
     testMode: Boolean,
+    isPilotPayment: Boolean,
     checkoutUrl: String,
     termsAcceptedAt: { type: Date, required: true },
     offerVersion: { type: String, required: true },

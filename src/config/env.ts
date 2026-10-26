@@ -38,6 +38,10 @@ const schema = z
       .enum(['true', 'false'])
       .default('true')
       .transform((value) => value === 'true'),
+    PUBLIC_PAYMENTS_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
     PAYMENT_PROVIDER: z.enum(['mock', 'robokassa']).default('mock'),
     ROBOKASSA_MERCHANT_LOGIN: optionalString,
     ROBOKASSA_TEST_PASSWORD_1: optionalString,
@@ -49,6 +53,11 @@ const schema = z
       .enum(['true', 'false'])
       .default('true')
       .transform((value) => value === 'true'),
+    ROBOKASSA_LIVE_PILOT_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    ROBOKASSA_LIVE_PILOT_IDS: z.string().default(''),
     LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('debug'),
     PAYMENT_RETURN_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(60),
     INVITE_LINK_TTL_HOURS: z.coerce.number().int().positive().default(24),
@@ -86,6 +95,15 @@ const schema = z
           });
       }
     }
+    if (
+      env.ROBOKASSA_LIVE_PILOT_ENABLED &&
+      (env.PAYMENT_PROVIDER !== 'robokassa' || env.ROBOKASSA_TEST_MODE)
+    )
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ROBOKASSA_LIVE_PILOT_ENABLED'],
+        message: 'live pilot requires Robokassa live mode',
+      });
   });
 
 export type AppConfig = ReturnType<typeof loadConfig>;
@@ -101,5 +119,8 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
   const adminIds = result.data.ADMIN_IDS.split(',')
     .map((id) => id.trim())
     .filter(Boolean);
-  return { ...result.data, adminIds: new Set(adminIds) };
+  const livePilotIds = result.data.ROBOKASSA_LIVE_PILOT_IDS.split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return { ...result.data, adminIds: new Set(adminIds), livePilotIds: new Set(livePilotIds) };
 }

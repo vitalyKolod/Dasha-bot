@@ -92,7 +92,7 @@ describe('/start routing', () => {
     await start(ctx);
     expect(findByToken).not.toHaveBeenCalled();
     expect(getActive).toHaveBeenCalledWith('42');
-    expect(reply.mock.calls[0]?.[0]).toContain('подготовки твоей морозилки');
+    expect(reply.mock.calls[0]?.[0]).toContain('Первый месяц — 2 000 ₽');
   });
   it('keeps pay_ links on the existing payment path', async () => {
     const { ctx, reply, findByToken } = context(`pay_${'A'.repeat(40)}`, true);

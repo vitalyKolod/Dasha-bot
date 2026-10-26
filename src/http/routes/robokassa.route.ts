@@ -5,6 +5,7 @@ import type { PaymentService } from '../../modules/payments/payment.service.js';
 import type { WebhookPayload } from '../../modules/payments/payment.types.js';
 import type { PaymentDeliveryService } from '../../modules/payments/paymentDelivery.service.js';
 import type { AppConfig } from '../../config/env.js';
+import { RobokassaPaymentProvider } from '../../modules/payments/providers/robokassa.provider.js';
 export function registerRobokassaRoute(
   server: FastifyInstance,
   provider: PaymentProvider,
@@ -13,11 +14,25 @@ export function registerRobokassaRoute(
   logger: Logger,
   config: AppConfig,
 ): void {
+  const pendingTestProvider =
+    provider.name === 'robokassa' &&
+    !config.ROBOKASSA_TEST_MODE &&
+    config.ROBOKASSA_TEST_PASSWORD_1 &&
+    config.ROBOKASSA_TEST_PASSWORD_2
+      ? new RobokassaPaymentProvider({
+          merchantLogin: config.ROBOKASSA_MERCHANT_LOGIN!,
+          password1: config.ROBOKASSA_TEST_PASSWORD_1,
+          password2: config.ROBOKASSA_TEST_PASSWORD_2,
+          testMode: true,
+        })
+      : null;
   server.post<{ Body: WebhookPayload }>('/payments/robokassa/result', async (request, reply) => {
     if (provider.name !== 'robokassa') return reply.code(404).send({ error: 'Provider disabled' });
     let event;
     try {
-      event = provider.verifyWebhook(request.body);
+      const verifier =
+        request.body?.Shp_mode === 'test' && pendingTestProvider ? pendingTestProvider : provider;
+      event = verifier.verifyWebhook(request.body);
     } catch (error) {
       logger.warn(
         { reason: error instanceof Error ? error.message : 'Invalid webhook' },

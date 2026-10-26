@@ -38,6 +38,41 @@ function setup() {
 }
 
 describe('Robokassa result and return pages', () => {
+  it('still accepts an outstanding test callback after live pilot is enabled', async () => {
+    const server = Fastify();
+    const handleVerifiedEvent = vi.fn().mockResolvedValue({ subscription: {} });
+    const runOnce = vi.fn().mockResolvedValue(undefined);
+    const liveProvider = new RobokassaPaymentProvider({
+      merchantLogin: 'shop',
+      password1: 'live-one',
+      password2: 'live-two',
+      testMode: false,
+    });
+    registerRobokassaRoute(
+      server,
+      liveProvider,
+      { handleVerifiedEvent } as unknown as PaymentService,
+      { runOnce } as unknown as PaymentDeliveryService,
+      { info: vi.fn(), warn: vi.fn() } as unknown as Logger,
+      {
+        BOT_USERNAME: 'dasha_zagotovki_bot',
+        ROBOKASSA_TEST_MODE: false,
+        ROBOKASSA_MERCHANT_LOGIN: 'shop',
+        ROBOKASSA_TEST_PASSWORD_1: 'one',
+        ROBOKASSA_TEST_PASSWORD_2: 'two',
+      } as AppConfig,
+    );
+    const reply = await server.inject({
+      method: 'POST',
+      url: '/payments/robokassa/result',
+      payload: signedBody(),
+    });
+    expect(reply.body).toBe('OK42');
+    expect(handleVerifiedEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: { testMode: true } }),
+    );
+    await server.close();
+  });
   it('acknowledges a verified payment and schedules delivery', async () => {
     const { server, handleVerifiedEvent, runOnce } = setup();
     const reply = await server.inject({

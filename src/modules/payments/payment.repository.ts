@@ -20,6 +20,7 @@ export class PaymentRepository {
         telegramId,
         status: 'succeeded',
         processedAt: { $exists: true },
+        isPilotPayment: { $ne: true },
         ...(provider === 'robokassa' ? { testMode: testMode ? { $ne: false } : false } : {}),
       }),
     );

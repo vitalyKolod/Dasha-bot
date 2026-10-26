@@ -2,37 +2,29 @@ import type { Bot } from 'grammy';
 import type { BotContext } from '../context.js';
 import { getActiveProducts, getProduct, type Product } from '../../config/products.js';
 import { productsKeyboard, productKeyboard } from '../ui/keyboards/products.keyboard.js';
-import { productMessage, productSelectionMessage } from '../ui/messages/payment.message.js';
+import {
+  productMessage,
+  productSelectionMessage,
+  salesOpeningNotice,
+} from '../ui/messages/payment.message.js';
 import { insideMessage } from '../ui/messages/start.message.js';
 import { InlineKeyboard } from 'grammy';
 import { showWaitlist } from './waitlist.handler.js';
 import { renderScreen } from '../ui/renderScreen.js';
-import { showAccount } from './subscription.handler.js';
 
-export async function renderProductCheckout(
-  ctx: BotContext,
-  product: Product,
-  testCheckout = false,
-): Promise<void> {
+export async function renderProductCheckout(ctx: BotContext, product: Product): Promise<void> {
   if (!ctx.from) return;
-  if (!testCheckout && (await ctx.services.subscriptions.getActive(String(ctx.from.id)))) {
-    await showAccount(ctx);
-    return;
-  }
-  const testAccess =
-    ctx.config.PAYMENT_PROVIDER === 'robokassa' &&
-    ctx.config.ROBOKASSA_TEST_MODE &&
-    (testCheckout || ctx.config.adminIds.has(String(ctx.from.id)));
-  if (ctx.config.CHECKLIST_MODE && !testAccess) {
-    const renewal = await ctx.services.payments.hasPaidBefore(String(ctx.from.id));
-    await renderScreen(ctx, {
-      text: productMessage(renewal ? getProduct('monthly')! : product, false, renewal),
-      keyboard: productKeyboard(product.id, null, ctx.config),
-    });
-    return;
-  }
-  if (ctx.config.PRE_REGISTRATION && !testAccess) {
+  if (ctx.config.PRE_REGISTRATION) {
     await showWaitlist(ctx);
+    return;
+  }
+  if (!ctx.config.PUBLIC_PAYMENTS_ENABLED) {
+    const renewal = await ctx.services.payments.hasPaidBefore(String(ctx.from.id));
+    const displayProduct = renewal ? getProduct('monthly')! : product;
+    await renderScreen(ctx, {
+      text: productMessage(displayProduct, false, renewal),
+      keyboard: productKeyboard(displayProduct.id, null, ctx.config),
+    });
     return;
   }
   const user = await ctx.services.users.touch(ctx.from);
@@ -43,27 +35,12 @@ export async function renderProductCheckout(
   });
   const checkoutProduct = getProduct(payment.productId)!;
   await renderScreen(ctx, {
-    text: productMessage(checkoutProduct, true, payment.purpose === 'renewal'),
+    text: `${ctx.config.PAYMENT_PROVIDER === 'robokassa' && ctx.config.ROBOKASSA_TEST_MODE ? '🧪 <b>Тестовая оплата · деньги не списываются</b>\n\n' : ''}${productMessage(checkoutProduct, true, payment.purpose === 'renewal')}`,
     keyboard: productKeyboard(checkoutProduct.id, payment.checkoutUrl!, ctx.config),
   });
 }
 
 export function registerProductHandlers(bot: Bot<BotContext>): void {
-  bot.command('testpayment', async (ctx) => {
-    if (!ctx.from || ctx.config.PAYMENT_PROVIDER !== 'robokassa' || !ctx.config.ROBOKASSA_TEST_MODE)
-      return;
-    const renewal = await ctx.services.payments.hasPaidBefore(String(ctx.from.id));
-    await ctx.reply(productSelectionMessage(renewal, true), {
-      parse_mode: 'HTML',
-      reply_markup: productsKeyboard(getActiveProducts(), 'testpayment', renewal),
-    });
-  });
-  bot.callbackQuery(/^testpayment:([a-z0-9_-]+)$/, async (ctx) => {
-    if (ctx.config.PAYMENT_PROVIDER !== 'robokassa' || !ctx.config.ROBOKASSA_TEST_MODE) return;
-    const product = getProduct(ctx.match[1]!);
-    if (!product) return;
-    await renderProductCheckout(ctx, product, true);
-  });
   bot.callbackQuery('inside', async (ctx) => {
     const active = ctx.from
       ? await ctx.services.subscriptions.getActive(String(ctx.from.id))
@@ -90,10 +67,6 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
     });
   });
   bot.callbackQuery('products', async (ctx) => {
-    if (ctx.from && (await ctx.services.subscriptions.getActive(String(ctx.from.id)))) {
-      await showAccount(ctx);
-      return;
-    }
     if (
       ctx.config.PRE_REGISTRATION &&
       !ctx.config.CHECKLIST_MODE &&
@@ -116,7 +89,7 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
       return;
     }
     await renderScreen(ctx, {
-      text: productSelectionMessage(renewal),
+      text: `${productSelectionMessage(renewal, ctx.config.PAYMENT_PROVIDER === 'robokassa' && ctx.config.ROBOKASSA_TEST_MODE)}\n\n${ctx.config.PUBLIC_PAYMENTS_ENABLED ? '' : salesOpeningNotice}`.trim(),
       keyboard: productsKeyboard(products, 'product', renewal),
     });
   });

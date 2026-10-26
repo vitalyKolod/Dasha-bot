@@ -23,11 +23,25 @@ export class RobokassaPaymentProvider implements PaymentProvider {
   createCheckout(input: CreateCheckoutInput): Promise<CreateCheckoutResult> {
     const amount = formatAmount(input.amount);
     const mode = this.options.testMode ? 'test' : 'live';
+    const receipt = this.options.testMode
+      ? undefined
+      : JSON.stringify({
+          items: [
+            {
+              name: input.description.slice(0, 100),
+              quantity: 1,
+              sum: Number(amount),
+              payment_method: 'full_payment',
+              payment_object: 'service',
+              tax: 'none',
+            },
+          ],
+        });
     const signature = sha256(
-      `${this.options.merchantLogin}:${amount}:${input.invoiceId}:${this.options.password1}:Shp_mode=${mode}`,
+      `${this.options.merchantLogin}:${amount}:${input.invoiceId}:${receipt ? `${encodeURIComponent(receipt)}:` : ''}${this.options.password1}:Shp_mode=${mode}`,
     );
     const url = new URL('https://auth.robokassa.ru/Merchant/Index.aspx');
-    url.search = new URLSearchParams({
+    const params = new URLSearchParams({
       MerchantLogin: this.options.merchantLogin,
       OutSum: amount,
       InvId: input.invoiceId,
@@ -37,7 +51,8 @@ export class RobokassaPaymentProvider implements PaymentProvider {
       Culture: 'ru',
       Encoding: 'utf-8',
       ...(this.options.testMode ? { IsTest: '1' } : {}),
-    }).toString();
+    });
+    url.search = `${params.toString()}${receipt ? `&Receipt=${encodeURIComponent(encodeURIComponent(receipt))}` : ''}`;
     return Promise.resolve({
       checkoutUrl: url.toString(),
       providerInvoiceId: input.invoiceId,
@@ -78,6 +93,11 @@ export class RobokassaPaymentProvider implements PaymentProvider {
     if (!match) throw new AppError('Invalid amount', 400, 'INVALID_AMOUNT');
     const kopecks = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
     if (!Number.isSafeInteger(kopecks)) throw new AppError('Invalid amount', 400, 'INVALID_AMOUNT');
-    return { invoiceId, amount: kopecks, status: 'succeeded', metadata: {} };
+    return {
+      invoiceId,
+      amount: kopecks,
+      status: 'succeeded',
+      metadata: { testMode: this.options.testMode },
+    };
   }
 }

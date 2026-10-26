@@ -17,6 +17,9 @@ const renewalSelection = `💛 <b>Продление доступа</b>
 
 👇 Продлите доступ`;
 
+export const salesOpeningNotice =
+  '⏳ Продажи откроются завтра. Пока можно посмотреть тарифы и условия.';
+
 export const productSelectionMessage = (renewal: boolean, testMode = false) =>
   `${testMode ? '🧪 <b>Тестовая оплата</b> · деньги не списываются\n\n' : ''}${renewal ? renewalSelection : firstAccessSelection}`;
 
@@ -35,4 +38,4 @@ export const productMessage = (
 
 ${renewal ? '💛 <i>Цена 1 000 ₽ сохраняется после перерыва.</i>' : '🔁 Следующий месяц — <b>1 000 ₽</b>\n<i>Цена сохраняется после перерыва.</i>'}
 
-${checkoutAvailable ? '<i>Нажимая «Перейти к оплате», вы соглашаетесь с публичной офертой и политикой обработки персональных данных.</i>' : '⏳ Оплата откроется после запуска клуба.\nПока можно посмотреть условия ниже.'}`;
+${checkoutAvailable ? '<i>Нажимая «Перейти к оплате», вы соглашаетесь с публичной офертой и политикой обработки персональных данных.</i>' : salesOpeningNotice}`;

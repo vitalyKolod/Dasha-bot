@@ -1,13 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BotContext } from '../src/bot/context.js';
 import { showAccount, showClubLink } from '../src/bot/handlers/subscription.handler.js';
-import { renderProductCheckout } from '../src/bot/handlers/products.handler.js';
-import { getProduct } from '../src/config/products.js';
 import type { InlineKeyboard } from 'grammy';
 
 function context(member = false) {
   const reply = vi.fn();
-  const createCheckout = vi.fn();
   const getClubAccess = vi.fn().mockResolvedValue({
     url: member ? 'https://t.me/c/4334407084/1' : 'https://t.me/+private',
     member,
@@ -24,12 +21,11 @@ function context(member = false) {
         }),
       },
       access: { getClubAccess },
-      payments: { createCheckout },
     },
     reply,
     logger: { warn: vi.fn() },
   } as unknown as BotContext;
-  return { ctx, reply, createCheckout, getClubAccess };
+  return { ctx, reply, getClubAccess };
 }
 
 describe('paid club account', () => {
@@ -46,18 +42,21 @@ describe('paid club account', () => {
         callback_data: 'subscription:open',
       }),
     );
-    expect(buttons.some((button) => button.text.includes('Продлить'))).toBe(false);
+    expect(buttons).toContainEqual({ text: '🔁 Продлить доступ', callback_data: 'products' });
   });
 
-  it('opens the club directly for an existing member and does not offer payment', async () => {
-    const { ctx, reply, createCheckout } = context(true);
-    await renderProductCheckout(ctx, getProduct('monthly')!);
+  it('opens the club directly for an existing member and offers renewal', async () => {
+    const { ctx, reply } = context(true);
+    await showAccount(ctx);
     const [text, options] = reply.mock.calls[0] as [string, { reply_markup: InlineKeyboard }];
     expect(text).toContain('Мой аккаунт');
     expect(options.reply_markup.inline_keyboard.flat()).toContainEqual(
       expect.objectContaining({ text: '🍳 Открыть клуб', url: 'https://t.me/c/4334407084/1' }),
     );
-    expect(createCheckout).not.toHaveBeenCalled();
+    expect(options.reply_markup.inline_keyboard.flat()).toContainEqual({
+      text: '🔁 Продлить доступ',
+      callback_data: 'products',
+    });
   });
 
   it('can request a fresh invitation when a link stops working', async () => {

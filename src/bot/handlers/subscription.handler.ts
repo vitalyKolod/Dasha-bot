@@ -42,6 +42,7 @@ export async function showAccount(
   else if (!blocked) keyboard.text('👉 Получить ссылку для входа', 'subscription:open').row();
   if (!access?.member && ctx.config.SUPPORT_USERNAME)
     addPaymentSupportButton(keyboard, ctx.config, '💬 Проблема со входом').row();
+  keyboard.text('🔁 Продлить доступ', 'products').row();
   keyboard.text('🏠 Главное меню', 'menu');
   await renderScreen(
     ctx,

@@ -3,6 +3,7 @@ import type { Logger } from 'pino';
 import type { Types } from 'mongoose';
 import mongoose from 'mongoose';
 import type { AppConfig } from '../../config/env.js';
+import { LIVE_PILOT_AMOUNT_KOPECKS, isLivePilot } from '../../config/livePilot.js';
 import { getProduct } from '../../config/products.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import type { PaymentProvider } from './PaymentProvider.js';
@@ -31,11 +32,18 @@ export class PaymentService {
       this.config.ROBOKASSA_TEST_MODE,
     );
   }
-  async createCheckout(input: { userId: Types.ObjectId; telegramId: string; productId: string }) {
+  async createCheckout(input: {
+    userId: Types.ObjectId;
+    telegramId: string;
+    productId: string;
+    livePilot?: boolean;
+  }) {
+    if (input.livePilot && (!isLivePilot(this.config) || input.productId !== 'monthly'))
+      throw new AppError('Пробная оплата недоступна', 403, 'LIVE_PILOT_UNAVAILABLE');
     const renewal = await this.hasPaidBefore(input.telegramId);
-    const product = getProduct(renewal ? 'monthly' : input.productId);
+    const product = getProduct(input.livePilot || renewal ? 'monthly' : input.productId);
     if (!product) throw new AppError('Тариф недоступен', 404, 'PRODUCT_NOT_FOUND');
-    const amount = renewal ? 100000 : product.price;
+    const amount = input.livePilot ? LIVE_PILOT_AMOUNT_KOPECKS : renewal ? 100000 : product.price;
     let payment: Awaited<ReturnType<PaymentRepository['create']>> | undefined;
     let invoiceId = '';
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -54,6 +62,7 @@ export class PaymentService {
           status: 'created',
           purpose: renewal ? 'renewal' : 'new_subscription',
           testMode: this.provider.name === 'robokassa' ? this.config.ROBOKASSA_TEST_MODE : false,
+          ...(input.livePilot ? { isPilotPayment: true } : {}),
           termsAcceptedAt: new Date(),
           offerVersion: this.config.OFFER_VERSION,
         });
@@ -100,6 +109,11 @@ export class PaymentService {
       this.logger.warn({ invoice: event.invoiceId }, 'Unknown payment invoice');
       throw new AppError('Payment not found', 404, 'PAYMENT_NOT_FOUND');
     }
+    if (
+      typeof event.metadata.testMode === 'boolean' &&
+      payment.testMode !== event.metadata.testMode
+    )
+      throw new AppError('Payment mode mismatch', 400, 'PAYMENT_MODE_MISMATCH');
     if (!moneyEquals(payment.amount, event.amount)) {
       this.logger.warn({ invoice: event.invoiceId }, 'Payment amount mismatch');
       throw new AppError('Payment amount mismatch', 400, 'AMOUNT_MISMATCH');
