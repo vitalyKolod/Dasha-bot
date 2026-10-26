@@ -6,7 +6,7 @@ export function mainKeyboard(active: boolean, config: AppConfig) {
   else
     keyboard
       .text(
-        config.PRE_REGISTRATION ? '❤️ ЖДУ ОТКРЫТИЯ' : '🔍 Вступить в клуб',
+        config.PRE_REGISTRATION ? '❤️ ЖДУ ОТКРЫТИЯ' : '❤️ Хочу в клуб',
         config.PRE_REGISTRATION ? 'waitlist' : 'products',
       )
       .row();

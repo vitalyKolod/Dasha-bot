@@ -2,7 +2,7 @@ import { InlineKeyboard, InputFile, type Bot } from 'grammy';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type { BotContext } from '../context.js';
-import { getActiveProducts, getProduct } from '../../config/products.js';
+import { getActiveProducts, getProduct, RENEWAL_PRICE_KOPECKS } from '../../config/products.js';
 import {
   canUseTestPayment,
   isLivePilot,
@@ -66,7 +66,7 @@ export function registerLegalHandler(bot: Bot<BotContext>): void {
         pilot
           ? `<b>Пробная реальная покупка: 30 дней доступа за ${formatMoney(LIVE_PILOT_AMOUNT_KOPECKS)}</b>. Деньги спишутся; после подтверждения бот выдаст доступ. Последующие покупки оформляются отдельно по цене, показанной перед их оплатой.`
           : product
-            ? `<b>Тариф «${renewal ? 'Продление на 1 месяц' : product.title}»</b>\nСтоимость: <b>${formatMoney(product.price)}</b>\nДоступ: <b>${product.durationDays === null ? 'навсегда' : `${product.durationDays} дней`}</b>`
+            ? `<b>Тариф «${renewal ? 'Продление на 1 месяц' : product.title}»</b>\nСтоимость: <b>${formatMoney(renewal ? RENEWAL_PRICE_KOPECKS : product.price)}</b>\nДоступ: <b>${product.durationDays === null ? 'навсегда' : `${product.durationDays} дней`}</b>`
             : `<b>Тарифы</b>\n${getActiveProducts()
                 .map(
                   (item) =>
@@ -75,7 +75,7 @@ export function registerLegalHandler(bot: Bot<BotContext>): void {
                 .join('\n')}`,
         pilot
           ? 'Для этой покупки действует цена 50 ₽ за 30 дней. Автоматического списания за следующий период нет.'
-          : 'Доступ на 30 дней стоит 2 000 ₽. Каждое последующее продление на 30 дней тоже стоит 2 000 ₽, даже если подписка прерывалась.',
+          : 'Первый доступ на 30 дней стоит 2 000 ₽. Каждое последующее продление на 30 дней стоит 1 000 ₽, даже если подписка прерывалась.',
         'После оплаты ты получишь доступ в закрытую Telegram-группу клуба: ко всем рецептам, заготовкам, меню, спискам продуктов и новым материалам.',
         'Подробные условия покупки и обработки данных — в документах ниже.',
       ].join('\n\n'),

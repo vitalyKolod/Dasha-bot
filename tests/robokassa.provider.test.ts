@@ -97,6 +97,28 @@ describe('Robokassa webhook', () => {
 });
 
 describe('Robokassa checkout', () => {
+  it('includes a 1,000 ₽ fiscal receipt item for a live renewal', async () => {
+    const provider = new RobokassaPaymentProvider({
+      merchantLogin: 'shop',
+      password1: 'live-one',
+      password2: 'live-two',
+      testMode: false,
+    });
+    const checkout = await provider.createCheckout({
+      paymentId: 'renewal',
+      invoiceId: '43',
+      amount: 100000,
+      currency: 'RUB',
+      description: 'Доступ в кулинарный клуб на 30 дней',
+      returnUrl: 'https://example.org/return',
+    });
+    const url = new URL(checkout.checkoutUrl);
+    expect(url.searchParams.get('OutSum')).toBe('1000.00');
+    const receipt: unknown = JSON.parse(decodeURIComponent(url.searchParams.get('Receipt')!));
+    expect(receipt).toEqual(
+      expect.objectContaining({ items: [expect.objectContaining({ sum: 1000 })] }),
+    );
+  });
   it('uses live Password #1 and omits IsTest for a real payment', async () => {
     const provider = new RobokassaPaymentProvider({
       merchantLogin: 'shop',

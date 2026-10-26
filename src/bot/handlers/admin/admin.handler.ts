@@ -306,8 +306,8 @@ async function runBroadcast(bot: Bot<BotContext>, id: string) {
     try {
       await sendContent(bot.api, Number(recipient), d.messages);
       if (d.includeJoinButton)
-        await bot.api.sendMessage(Number(recipient), '❤️ Вступить в клуб', {
-          reply_markup: new InlineKeyboard().text('❤️ Вступить', 'products'),
+        await bot.api.sendMessage(Number(recipient), '❤️ Хочу в клуб', {
+          reply_markup: new InlineKeyboard().text('❤️ Хочу в клуб', 'products'),
         });
       await BroadcastDraftModel.updateOne({ _id: id }, { $inc: { sent: 1 } });
     } catch (error) {
@@ -548,8 +548,8 @@ export function registerAdminHandlers(bot: Bot<BotContext>): void {
     else {
       await sendContent(ctx.api, ctx.chat!.id, d.messages);
       if (d.includeJoinButton)
-        await ctx.reply('❤️ Вступить в клуб', {
-          reply_markup: new InlineKeyboard().text('❤️ Вступить', 'products'),
+        await ctx.reply('❤️ Хочу в клуб', {
+          reply_markup: new InlineKeyboard().text('❤️ Хочу в клуб', 'products'),
         });
     }
     await ctx.reply('Предпросмотр завершён.', { reply_markup: back('admin:broadcast') });

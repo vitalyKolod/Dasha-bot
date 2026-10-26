@@ -4,7 +4,7 @@ import type { Types } from 'mongoose';
 import mongoose from 'mongoose';
 import type { AppConfig } from '../../config/env.js';
 import { LIVE_PILOT_AMOUNT_KOPECKS, isLivePilot } from '../../config/livePilot.js';
-import { getProduct } from '../../config/products.js';
+import { getProduct, RENEWAL_PRICE_KOPECKS } from '../../config/products.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import type { PaymentProvider } from './PaymentProvider.js';
 import { PaymentRepository } from './payment.repository.js';
@@ -43,7 +43,11 @@ export class PaymentService {
     const renewal = await this.hasPaidBefore(input.telegramId);
     const product = getProduct(input.livePilot || renewal ? 'monthly' : input.productId);
     if (!product) throw new AppError('Тариф недоступен', 404, 'PRODUCT_NOT_FOUND');
-    const amount = input.livePilot ? LIVE_PILOT_AMOUNT_KOPECKS : product.price;
+    const amount = input.livePilot
+      ? LIVE_PILOT_AMOUNT_KOPECKS
+      : renewal
+        ? RENEWAL_PRICE_KOPECKS
+        : product.price;
     if (!input.livePilot) {
       const existing = await this.payments.findReusableCheckout({
         provider: this.provider.name,

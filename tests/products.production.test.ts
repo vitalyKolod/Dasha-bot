@@ -99,7 +99,7 @@ describe('public production tariffs', () => {
     expect(reply.mock.calls[0]?.[0]).toContain('Тариф недоступен');
   });
 
-  it('offers an existing payer a 2,000 ₽ monthly renewal', async () => {
+  it('offers an existing payer a 1,000 ₽ monthly renewal', async () => {
     const { handlers, ctx, reply, createCheckout } = setup(true);
     await handlers.get('products')!(ctx);
     expect(createCheckout).toHaveBeenCalledWith({
@@ -107,7 +107,7 @@ describe('public production tariffs', () => {
       telegramId: '42',
       productId: 'monthly',
     });
-    expect(reply.mock.calls[0]?.[0]).toContain(formatMoney(200000));
+    expect(reply.mock.calls[0]?.[0]).toContain(formatMoney(100000));
     const options = reply.mock.calls[0]?.[1] as { reply_markup: InlineKeyboard };
     expect(options.reply_markup.inline_keyboard.flat()).not.toContainEqual(
       expect.objectContaining({ callback_data: 'product:quarterly' }),
@@ -125,6 +125,20 @@ describe('public production tariffs', () => {
     });
   });
 
+  it('opens a fresh payment message from an expiration reminder', async () => {
+    const { handlers, ctx, reply, editMessageText, createCheckout } = setup(true);
+    Object.assign(ctx, {
+      callbackQuery: { message: { text: '⏳ Доступ в клуб заканчивается завтра' } },
+    });
+    await handlers.get('reminder:renew')!(ctx);
+    expect(createCheckout).toHaveBeenCalledOnce();
+    expect(reply).toHaveBeenCalledWith(
+      expect.stringContaining(`Стоимость: <b>${formatMoney(100000)}</b>`),
+      expect.any(Object),
+    );
+    expect(editMessageText).not.toHaveBeenCalled();
+  });
+
   it.each([false, true])(
     'does not create a checkout while sales are closed (paid before: %s)',
     async (paidBefore) => {
@@ -136,7 +150,7 @@ describe('public production tariffs', () => {
       expect(createCheckout).not.toHaveBeenCalled();
       const [message, options] = reply.mock.calls[1] as [string, { reply_markup: InlineKeyboard }];
       expect(message).toContain('Продажи откроются завтра');
-      expect(message).toContain(formatMoney(200000));
+      expect(message).toContain(formatMoney(paidBefore ? 100000 : 200000));
       expect(
         options.reply_markup.inline_keyboard
           .flat()

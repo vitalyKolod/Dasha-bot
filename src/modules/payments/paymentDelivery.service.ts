@@ -2,7 +2,7 @@ import type { Bot } from 'grammy';
 import { InlineKeyboard } from 'grammy';
 import type { Logger } from 'pino';
 import type { BotContext } from '../../bot/context.js';
-import { formatDate } from '../../bot/ui/helpers/formatDate.js';
+import { paymentSuccessMessage } from '../../bot/ui/messages/paymentSuccess.message.js';
 import type { AccessService } from '../access/access.service.js';
 import { SubscriptionService } from '../subscriptions/subscription.service.js';
 import { PaymentRepository } from './payment.repository.js';
@@ -47,7 +47,7 @@ export class PaymentDeliveryService {
             .text('🏠 Главное меню', 'receipt:menu');
           await this.bot.api.sendMessage(
             Number(payment.telegramId),
-            `🎉 <b>Оплата прошла!</b>\n\nДобро пожаловать в клуб 💛\n\nТвой доступ активен: <b>${subscription.expiresAt ? `до ${formatDate(subscription.expiresAt)}` : 'навсегда'}</b>`,
+            paymentSuccessMessage(payment.purpose, subscription.expiresAt),
             { parse_mode: 'HTML', reply_markup: keyboard },
             AbortSignal.timeout(12_000) as unknown as Parameters<
               typeof this.bot.api.sendMessage

@@ -1,7 +1,7 @@
 import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotContext } from '../context.js';
 import { getProduct } from '../../config/products.js';
-import { formatDate } from '../ui/helpers/formatDate.js';
+import { paymentSuccessMessage } from '../ui/messages/paymentSuccess.message.js';
 import { renderScreen } from '../ui/renderScreen.js';
 import { renderProductCheckout } from './products.handler.js';
 import { addPaymentSupportButton, paymentSupportHint } from '../ui/paymentSupport.js';
@@ -75,7 +75,7 @@ export function registerPaymentHandlers(bot: Bot<BotContext>): void {
       keyboard.text('🏠 Главное меню', 'receipt:menu');
       addPaymentSupportButton(keyboard, ctx.config);
       await renderScreen(ctx, {
-        text: `🎉 <b>Оплата прошла!</b>\n\nДобро пожаловать в клуб 💛${subscription ? `\n\nТвой доступ активен: <b>${subscription.expiresAt ? `до ${formatDate(subscription.expiresAt)}` : 'навсегда'}</b>` : ''}`,
+        text: paymentSuccessMessage(payment.purpose, subscription.expiresAt),
         keyboard,
       });
     } else {

@@ -17,7 +17,7 @@ export async function buildWelcomeScreen(ctx: BotContext): Promise<Screen | null
     return {
       text: startMessage,
       keyboard: new InlineKeyboard()
-        .text('🔍 Вступить в клуб', 'products')
+        .text('❤️ Хочу в клуб', 'products')
         .row()
         .text('✨ Что внутри', 'inside')
         .row()

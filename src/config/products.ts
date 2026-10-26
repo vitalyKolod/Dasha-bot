@@ -10,6 +10,8 @@ export interface Product {
   receiptDescription: string;
 }
 
+export const RENEWAL_PRICE_KOPECKS = 100000;
+
 export const products: readonly Product[] = [
   {
     id: 'monthly',

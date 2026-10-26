@@ -7,8 +7,14 @@ import type { Bot } from 'grammy';
 import type { BotContext } from '../src/bot/context.js';
 import type { Logger } from 'pino';
 
-function setup(fails: boolean) {
-  const payment = { _id: 'payment', telegramId: '123', publicId: 'public', deliveryAttempts: 1 };
+function setup(fails: boolean, purpose: 'new_subscription' | 'renewal' = 'new_subscription') {
+  const payment = {
+    _id: 'payment',
+    telegramId: '123',
+    publicId: 'public',
+    deliveryAttempts: 1,
+    purpose,
+  };
   const claimDelivery = vi.fn().mockResolvedValueOnce(payment).mockResolvedValue(null);
   const markDelivered = vi.fn();
   const retryDelivery = vi.fn();
@@ -51,5 +57,13 @@ describe('paid invitation delivery', () => {
     await worker.runOnce();
     expect(markDelivered).not.toHaveBeenCalled();
     expect(retryDelivery).toHaveBeenCalledWith('payment', 1);
+  });
+  it('confirms the new end date and 1,000 ₽ price after a renewal', async () => {
+    const { worker, sendMessage } = setup(false, 'renewal');
+    await worker.runOnce();
+    const text = (sendMessage.mock.calls[0] as unknown[])[1] as string;
+    expect(text).toContain('Доступ продлён до');
+    expect(text).toContain('1 000 ₽');
+    expect(text).toContain('Автоматического списания нет');
   });
 });

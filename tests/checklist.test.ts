@@ -30,14 +30,14 @@ describe('checklist launch', () => {
     const { ctx, reply, replyWithPhoto, getActive } = context();
     const screen = await buildWelcomeScreen(ctx);
     expect(screen?.keyboard?.inline_keyboard.flat()).toEqual([
-      { text: '🔍 Вступить в клуб', callback_data: 'products' },
+      { text: '❤️ Хочу в клуб', callback_data: 'products' },
       { text: '✨ Что внутри', callback_data: 'inside' },
       { text: '📄 Информация и условия', callback_data: 'legal' },
     ]);
     await sendWelcome(ctx);
     expect(reply).toHaveBeenCalledWith(startMessage, expect.any(Object));
     expect(startMessage).toContain('Первый месяц — 2 000 ₽');
-    expect(startMessage).toContain('Продление — 2 000 ₽/мес.');
+    expect(startMessage).toContain('Продление — 1 000 ₽/мес.');
     expect(replyWithPhoto).not.toHaveBeenCalled();
     expect(getActive).toHaveBeenCalledWith('42');
   });

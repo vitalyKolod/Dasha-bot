@@ -12,7 +12,9 @@ export interface Subscription {
   accessRemovedAt?: Date;
   accessRemovalPendingAt?: Date;
   reminder3DaysSentAt?: Date;
+  reminder2DaysSentAt?: Date;
   reminder1DaySentAt?: Date;
+  reminderTodaySentAt?: Date;
   expirationNotificationSentAt?: Date;
   inviteLink?: string;
   inviteRequiresApproval?: boolean;
@@ -34,7 +36,9 @@ const schema = new Schema<Subscription>(
     accessRemovedAt: Date,
     accessRemovalPendingAt: Date,
     reminder3DaysSentAt: Date,
+    reminder2DaysSentAt: Date,
     reminder1DaySentAt: Date,
+    reminderTodaySentAt: Date,
     expirationNotificationSentAt: Date,
     inviteLink: String,
     inviteRequiresApproval: Boolean,

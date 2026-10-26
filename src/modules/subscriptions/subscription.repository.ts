@@ -1,5 +1,6 @@
 import type { ClientSession } from 'mongoose';
 import { SubscriptionModel } from './subscription.model.js';
+import type { ReminderField } from '../reminders/reminder.logic.js';
 export class SubscriptionRepository {
   findByTelegramId(telegramId: string, session?: ClientSession) {
     return SubscriptionModel.findOne({ telegramId }).session(session ?? null);
@@ -28,7 +29,9 @@ export class SubscriptionRepository {
         $set: { ...data, status: 'active' },
         $unset: {
           reminder3DaysSentAt: 1,
+          reminder2DaysSentAt: 1,
           reminder1DaySentAt: 1,
+          reminderTodaySentAt: 1,
           expirationNotificationSentAt: 1,
           accessGrantedAt: 1,
           accessRemovedAt: 1,
@@ -88,14 +91,26 @@ export class SubscriptionRepository {
       { new: true },
     );
   }
-  claimReminder(
-    id: string,
-    field: 'reminder3DaysSentAt' | 'reminder1DaySentAt' | 'expirationNotificationSentAt',
-  ) {
+  claimReminder(id: string, field: ReminderField, expiresAt?: Date) {
     return SubscriptionModel.findOneAndUpdate(
-      { _id: id, [field]: { $exists: false } },
+      {
+        _id: id,
+        status: field === 'expirationNotificationSentAt' ? 'expired' : 'active',
+        ...(expiresAt ? { expiresAt } : {}),
+        [field]: { $exists: false },
+      },
       { $set: { [field]: new Date() } },
       { new: true },
+    );
+  }
+  releaseReminder(id: string, field: ReminderField, expiresAt: Date) {
+    return SubscriptionModel.updateOne(
+      {
+        _id: id,
+        expiresAt,
+        status: field === 'expirationNotificationSentAt' ? 'expired' : 'active',
+      },
+      { $unset: { [field]: 1 } },
     );
   }
   listActiveExpiringBetween(from: Date, to: Date) {

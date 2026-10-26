@@ -5,7 +5,8 @@ import { adminKeyboard } from '../ui/keyboards/admin.keyboard.js';
 import { AdminDialogModel, MaterialModel } from '../../modules/admin/content.model.js';
 import { deliverMaterial } from './admin/admin.handler.js';
 import { InlineKeyboard } from 'grammy';
-import { formatDate } from '../ui/helpers/formatDate.js';
+import { formatDateTime } from '../ui/helpers/formatDate.js';
+import { paymentSuccessMessage } from '../ui/messages/paymentSuccess.message.js';
 import { addPaymentSupportButton, paymentSupportHint } from '../ui/paymentSupport.js';
 
 export function registerStartHandler(bot: Bot<BotContext>): void {
@@ -29,18 +30,24 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
           return null;
         });
       const help = paymentSupportHint(ctx.config);
+      const paidAndProcessed = payment?.status === 'succeeded' && !!payment.processedAt;
+      const renewedSubscription =
+        paidAndProcessed && payment.purpose === 'renewal'
+          ? await ctx.services.subscriptions.getActive(String(ctx.from.id))
+          : null;
       const text = lookupFailed
         ? `⚠️ Не удалось проверить оплату. Попробуйте чуть позже. ${help}`
         : !payment
           ? `⏳ Подтверждение оплаты пока не найдено. Повторно оплачивать пока не нужно. ${help}`
-          : payment.status === 'succeeded' && payment.processedAt
-            ? payment.deliveryStatus === 'sent'
-              ? '✅ Оплата подтверждена. Доступ активирован. Приглашение в закрытый клуб уже отправлено в этот чат.'
-              : `✅ Оплата подтверждена. Доступ активирован. Приглашение в закрытый клуб придёт сюда автоматически. ${help}`
+          : paidAndProcessed
+            ? payment.purpose === 'renewal'
+              ? `✅ Доступ продлён до ${renewedSubscription?.expiresAt ? formatDateTime(renewedSubscription.expiresAt) : 'оплаченного срока'}. Следующее продление — 1 000 ₽, автоматического списания нет.`
+              : payment.deliveryStatus === 'sent'
+                ? '✅ Оплата подтверждена. Доступ активирован. Приглашение в закрытый клуб уже отправлено в этот чат.'
+                : `✅ Оплата подтверждена. Доступ активирован. Приглашение в закрытый клуб придёт сюда автоматически. ${help}`
             : ['canceled', 'failed', 'refunded'].includes(payment.status)
               ? `❌ Оплата не подтверждена. ${help}`
               : `⏳ Ждём подтверждения Robokassa. Доступ придёт сюда автоматически. Повторно оплачивать пока не нужно. ${help}`;
-      const paidAndProcessed = payment?.status === 'succeeded' && !!payment.processedAt;
       const keyboard = paidAndProcessed
         ? new InlineKeyboard().text('👤 Мой аккаунт', 'receipt:subscription')
         : ctx.config.SUPPORT_USERNAME
@@ -91,10 +98,10 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
               .row();
           keyboard.text('👤 Мой аккаунт', 'receipt:subscription').row();
           keyboard.text('🏠 Главное меню', 'receipt:menu');
-          await ctx.reply(
-            `🎉 <b>Оплата прошла!</b>\n\nДобро пожаловать в клуб 💛\n\nТвой доступ активен: <b>${subscription.expiresAt ? `до ${formatDate(subscription.expiresAt)}` : 'навсегда'}</b>`,
-            { parse_mode: 'HTML', reply_markup: keyboard },
-          );
+          await ctx.reply(paymentSuccessMessage(payment.purpose, subscription.expiresAt), {
+            parse_mode: 'HTML',
+            reply_markup: keyboard,
+          });
           return;
         }
       }

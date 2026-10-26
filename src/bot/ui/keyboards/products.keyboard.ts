@@ -1,5 +1,9 @@
 import { InlineKeyboard } from 'grammy';
-import { getActiveProducts, getProduct, type Product } from '../../../config/products.js';
+import {
+  getActiveProducts,
+  RENEWAL_PRICE_KOPECKS,
+  type Product,
+} from '../../../config/products.js';
 import type { AppConfig } from '../../../config/env.js';
 import { formatMoney } from '../helpers/formatMoney.js';
 
@@ -12,7 +16,7 @@ export const productsKeyboard = (
   if (renewal)
     return keyboard
       .text(
-        `🔁 Продлить на месяц · ${formatMoney(getProduct('monthly')!.price)}`,
+        `🔁 Продлить на месяц · ${formatMoney(RENEWAL_PRICE_KOPECKS)}`,
         `${callbackPrefix}:monthly`,
       )
       .row()
@@ -32,9 +36,13 @@ export const productKeyboard = (
   productId: string,
   checkoutUrl: string | null,
   config: AppConfig,
+  renewal = false,
 ) => {
   const keyboard = new InlineKeyboard();
-  if (checkoutUrl) keyboard.url('💳 Перейти к оплате', checkoutUrl).row();
+  if (checkoutUrl)
+    keyboard
+      .url(renewal ? '💳 Продлить доступ · 1 000 ₽' : '💳 Перейти к оплате', checkoutUrl)
+      .row();
   keyboard.text('📄 Информация и условия', `legal:${productId}`).row();
   if (config.OFFER_URL) keyboard.url('📄 Оферта', config.OFFER_URL);
   if (config.PRIVACY_URL) keyboard.url('🔐 Политика', config.PRIVACY_URL);

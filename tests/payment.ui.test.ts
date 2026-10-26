@@ -10,10 +10,10 @@ describe('product checkout screen', () => {
     expect(getProduct('quarterly')).toBeUndefined();
     expect(productMessage(getProduct('monthly')!).replace(/\s/g, ' ')).toContain('2 000 ₽');
     expect(productMessage(getProduct('monthly')!).replace(/\s/g, ' ')).toContain(
-      'Следующий месяц — <b>2 000 ₽</b>',
+      'Следующий месяц — <b>1 000 ₽</b>',
     );
     expect(productMessage(getProduct('monthly')!, true, true).replace(/\s/g, ' ')).toContain(
-      'Стоимость: <b>2 000 ₽</b>',
+      'Стоимость: <b>1 000 ₽</b>',
     );
   });
   it('shows only the monthly choice and the same renewal price', () => {
@@ -24,8 +24,8 @@ describe('product checkout screen', () => {
         (choice) => 'callback_data' in choice && choice.callback_data === 'product:quarterly',
       ),
     ).toBe(false);
-    expect(productSelectionMessage(false)).toContain('2 000 ₽ / месяц');
-    expect(productSelectionMessage(true, true)).toContain('2 000 ₽ / 30 дней');
+    expect(productSelectionMessage(false)).toContain('1 000 ₽ / месяц');
+    expect(productSelectionMessage(true, true)).toContain('1 000 ₽ / 30 дней');
   });
   it('shows terms and a direct payment URL without another checkout callback', () => {
     const product = getProduct('monthly')!;
@@ -49,5 +49,17 @@ describe('product checkout screen', () => {
     expect(buttons).toContainEqual(
       expect.objectContaining({ text: '← Назад', callback_data: 'menu' }),
     );
+  });
+  it('labels a renewal checkout with the 1,000 ₽ price', () => {
+    const buttons = productKeyboard(
+      'monthly',
+      'https://auth.robokassa.ru/renew',
+      {} as AppConfig,
+      true,
+    ).inline_keyboard.flat();
+    expect(buttons[0]).toMatchObject({
+      text: '💳 Продлить доступ · 1 000 ₽',
+      url: 'https://auth.robokassa.ru/renew',
+    });
   });
 });

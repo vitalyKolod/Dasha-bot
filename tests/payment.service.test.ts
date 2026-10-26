@@ -155,15 +155,15 @@ describe('checkout prices', () => {
     await expect(checkout('quarterly', false)).rejects.toThrow('Тариф недоступен');
   });
 
-  it('charges a previous payer 2,000 ₽ for 30 days, including an old tariff button', async () => {
+  it('charges a previous payer 1,000 ₽ for 30 days, including an old tariff button', async () => {
     const renewal = await checkout('quarterly', true);
     expect(renewal.created).toMatchObject({
       productId: 'monthly',
-      amount: 200000,
+      amount: 100000,
       purpose: 'renewal',
     });
     expect(renewal.providerCheckout).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 200000 }),
+      expect.objectContaining({ amount: 100000 }),
     );
   });
 

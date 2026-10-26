@@ -71,7 +71,7 @@ export function createBot(
         return;
       }
       if (
-        /^(?:checklist|menu|receipt:menu|inside|products|product:[a-z0-9_-]+|terms:[a-z0-9_-]+|checkout:[a-z0-9_-]+|legal(?::[a-z0-9_-]+)?|legal-document:(?:offer|license|privacy|consent))$/.test(
+        /^(?:checklist|menu|receipt:menu|inside|products|reminder:renew|product:[a-z0-9_-]+|terms:[a-z0-9_-]+|checkout:[a-z0-9_-]+|legal(?::[a-z0-9_-]+)?|legal-document:(?:offer|license|privacy|consent))$/.test(
           data,
         ) ||
         /^check:[0-9a-f-]{36}$/.test(data)

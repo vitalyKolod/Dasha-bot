@@ -13,7 +13,11 @@ import { showWaitlist } from './waitlist.handler.js';
 import { showMainMenu } from './menu.handler.js';
 import { renderScreen } from '../ui/renderScreen.js';
 
-export async function renderProductCheckout(ctx: BotContext, product: Product): Promise<void> {
+export async function renderProductCheckout(
+  ctx: BotContext,
+  product: Product,
+  newMessage = false,
+): Promise<void> {
   if (!ctx.from) return;
   if (ctx.config.PRE_REGISTRATION) {
     await showWaitlist(ctx);
@@ -22,10 +26,14 @@ export async function renderProductCheckout(ctx: BotContext, product: Product): 
   if (!ctx.config.PUBLIC_PAYMENTS_ENABLED) {
     const renewal = await ctx.services.payments.hasPaidBefore(String(ctx.from.id));
     const displayProduct = renewal ? getProduct('monthly')! : product;
-    await renderScreen(ctx, {
-      text: productMessage(displayProduct, false, renewal),
-      keyboard: productKeyboard(displayProduct.id, null, ctx.config),
-    });
+    await renderScreen(
+      ctx,
+      {
+        text: productMessage(displayProduct, false, renewal),
+        keyboard: productKeyboard(displayProduct.id, null, ctx.config, renewal),
+      },
+      newMessage,
+    );
     return;
   }
   const user = await ctx.services.users.touch(ctx.from);
@@ -35,10 +43,19 @@ export async function renderProductCheckout(ctx: BotContext, product: Product): 
     productId: product.id,
   });
   const checkoutProduct = getProduct(payment.productId)!;
-  await renderScreen(ctx, {
-    text: `${ctx.config.PAYMENT_PROVIDER === 'robokassa' && ctx.config.ROBOKASSA_TEST_MODE ? '🧪 <b>Тестовая оплата · деньги не списываются</b>\n\n' : ''}${productMessage(checkoutProduct, true, payment.purpose === 'renewal')}`,
-    keyboard: productKeyboard(checkoutProduct.id, payment.checkoutUrl!, ctx.config),
-  });
+  await renderScreen(
+    ctx,
+    {
+      text: `${ctx.config.PAYMENT_PROVIDER === 'robokassa' && ctx.config.ROBOKASSA_TEST_MODE ? '🧪 <b>Тестовая оплата · деньги не списываются</b>\n\n' : ''}${productMessage(checkoutProduct, true, payment.purpose === 'renewal')}`,
+      keyboard: productKeyboard(
+        checkoutProduct.id,
+        payment.checkoutUrl!,
+        ctx.config,
+        payment.purpose === 'renewal',
+      ),
+    },
+    newMessage,
+  );
 }
 
 export function registerProductHandlers(bot: Bot<BotContext>): void {
@@ -56,7 +73,7 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
               ? '🔍 Клуб и тарифы'
               : ctx.config.PRE_REGISTRATION
                 ? '❤️ ЖДУ ОТКРЫТИЯ'
-                : '🍳 Вступить в клуб',
+                : '❤️ Хочу в клуб',
           active
             ? 'subscription'
             : ctx.config.CHECKLIST_MODE || !ctx.config.PRE_REGISTRATION
@@ -105,6 +122,9 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
       text: `${productSelectionMessage(renewal, ctx.config.PAYMENT_PROVIDER === 'robokassa' && ctx.config.ROBOKASSA_TEST_MODE)}\n\n${ctx.config.PUBLIC_PAYMENTS_ENABLED ? '' : salesOpeningNotice}`.trim(),
       keyboard: productsKeyboard(products, 'product', renewal),
     });
+  });
+  bot.callbackQuery('reminder:renew', async (ctx) => {
+    await renderProductCheckout(ctx, getProduct('monthly')!, true);
   });
   bot.callbackQuery(/^product:([a-z0-9_-]+)$/, async (ctx) => {
     const product = getProduct(ctx.match[1]!);

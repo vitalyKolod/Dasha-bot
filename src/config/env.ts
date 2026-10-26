@@ -27,7 +27,7 @@ const schema = z
     LEGAL_SELLER_INN: optionalString,
     LEGAL_BANK_DETAILS: optionalString,
     LEGAL_CONTACTS: optionalString,
-    OFFER_VERSION: z.string().trim().min(1).default('2026-09-21'),
+    OFFER_VERSION: z.string().trim().min(1).default('2026-10-26-r3'),
     START_IMAGE_FILE_ID: optionalString,
     START_VIDEO_FILE_ID: optionalString,
     CHECKLIST_MODE: z
