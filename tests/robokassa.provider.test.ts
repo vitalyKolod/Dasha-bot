@@ -107,13 +107,13 @@ describe('Robokassa checkout', () => {
     const checkout = await provider.createCheckout({
       paymentId: 'p',
       invoiceId: '42',
-      amount: 5000,
+      amount: 200000,
       currency: 'RUB',
       description: 'Club access',
       returnUrl: 'https://example.org/return',
     });
     const url = new URL(checkout.checkoutUrl);
-    expect(url.searchParams.get('OutSum')).toBe('50.00');
+    expect(url.searchParams.get('OutSum')).toBe('2000.00');
     expect(url.searchParams.has('IsTest')).toBe(false);
     expect(url.searchParams.get('Shp_mode')).toBe('live');
     const encodedReceipt = url.searchParams.get('Receipt');
@@ -123,7 +123,7 @@ describe('Robokassa checkout', () => {
         {
           name: 'Club access',
           quantity: 1,
-          sum: 50,
+          sum: 2000,
           payment_method: 'full_payment',
           payment_object: 'service',
           tax: 'none',
@@ -132,7 +132,7 @@ describe('Robokassa checkout', () => {
     });
     expect(url.searchParams.get('SignatureValue')).toBe(
       createHash('sha256')
-        .update(`shop:50.00:42:${encodedReceipt}:live-one:Shp_mode=live`)
+        .update(`shop:2000.00:42:${encodedReceipt}:live-one:Shp_mode=live`)
         .digest('hex'),
     );
   });

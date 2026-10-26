@@ -5,24 +5,27 @@ import { getActiveProducts, getProduct } from '../src/config/products.js';
 import type { AppConfig } from '../src/config/env.js';
 
 describe('product checkout screen', () => {
-  it('shows the agreed base prices for both active tariffs', () => {
+  it('shows one 2,000 ₽ tariff for first access and renewal', () => {
     expect(getProduct('monthly')?.price).toBe(200000);
-    expect(getProduct('quarterly')?.price).toBe(300000);
+    expect(getProduct('quarterly')).toBeUndefined();
     expect(productMessage(getProduct('monthly')!).replace(/\s/g, ' ')).toContain('2 000 ₽');
-    expect(productMessage(getProduct('quarterly')!).replace(/\s/g, ' ')).toContain('3 000 ₽');
     expect(productMessage(getProduct('monthly')!).replace(/\s/g, ' ')).toContain(
-      'Следующий месяц — <b>1 000 ₽</b>',
+      'Следующий месяц — <b>2 000 ₽</b>',
     );
     expect(productMessage(getProduct('monthly')!, true, true).replace(/\s/g, ' ')).toContain(
-      'Стоимость: <b>1 000 ₽</b>',
+      'Стоимость: <b>2 000 ₽</b>',
     );
   });
-  it('keeps tariff choices and the renewal price easy to scan', () => {
+  it('shows only the monthly choice and the same renewal price', () => {
     const choices = productsKeyboard(getActiveProducts()).inline_keyboard.flat();
     expect(choices[0]?.text.replace(/\s/g, ' ')).toContain('1 месяц · 2 000 ₽');
-    expect(choices[1]?.text.replace(/\s/g, ' ')).toContain('3 месяца · 3 000 ₽');
-    expect(productSelectionMessage(false)).toContain('1 000 ₽ / месяц');
-    expect(productSelectionMessage(true, true)).toContain('1 000 ₽ / 30 дней');
+    expect(
+      choices.some(
+        (choice) => 'callback_data' in choice && choice.callback_data === 'product:quarterly',
+      ),
+    ).toBe(false);
+    expect(productSelectionMessage(false)).toContain('2 000 ₽ / месяц');
+    expect(productSelectionMessage(true, true)).toContain('2 000 ₽ / 30 дней');
   });
   it('shows terms and a direct payment URL without another checkout callback', () => {
     const product = getProduct('monthly')!;

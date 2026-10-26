@@ -1,6 +1,6 @@
 import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotContext } from '../context.js';
-import { getProduct } from '../../config/products.js';
+import { getProductById } from '../../config/products.js';
 import { formatDate } from '../ui/helpers/formatDate.js';
 import { renderScreen } from '../ui/renderScreen.js';
 import { addPaymentSupportButton } from '../ui/paymentSupport.js';
@@ -36,7 +36,7 @@ export async function showAccount(
     blocked = error instanceof ClubAccessBlockedError;
     ctx.logger.warn({ telegramId: ctx.from.id }, 'Club access could not be checked');
   }
-  const product = getProduct(subscription.productId);
+  const product = getProductById(subscription.productId);
   const keyboard = new InlineKeyboard();
   if (access?.member) keyboard.url('🍳 Открыть клуб', access.url).row();
   else if (!blocked) keyboard.text('👉 Получить ссылку для входа', 'subscription:open').row();

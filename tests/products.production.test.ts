@@ -55,62 +55,45 @@ describe('public production tariffs', () => {
     expect([...handlers.keys()].some((key) => key.includes('testpayment'))).toBe(false);
   });
 
-  it('shows both first-purchase tariffs in checklist mode', async () => {
-    const { handlers, ctx, reply } = setup();
+  it('opens the only 2,000 ₽ checkout from the club button', async () => {
+    const { handlers, ctx, reply, createCheckout } = setup();
     await handlers.get('products')!(ctx);
+    expect(createCheckout).toHaveBeenCalledWith({
+      userId: 'user-id',
+      telegramId: '42',
+      productId: 'monthly',
+    });
+    expect(reply.mock.calls[0]?.[0]).toContain(formatMoney(200000));
     const options = reply.mock.calls[0]?.[1] as { reply_markup: InlineKeyboard };
     const buttons = options.reply_markup.inline_keyboard.flat();
+    expect(buttons).toContainEqual(
+      expect.objectContaining({ url: 'https://auth.robokassa.ru/Merchant/Index.aspx' }),
+    );
     expect(
       buttons.some(
-        (button) =>
-          'callback_data' in button &&
-          button.callback_data === 'product:monthly' &&
-          button.text.includes(formatMoney(200000)),
+        (button) => 'callback_data' in button && button.callback_data === 'product:quarterly',
       ),
-    ).toBe(true);
-    expect(
-      buttons.some(
-        (button) =>
-          'callback_data' in button &&
-          button.callback_data === 'product:quarterly' &&
-          button.text.includes(formatMoney(300000)),
-      ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it.each(['monthly', 'quarterly'])(
-    'creates a live %s checkout from the regular menu',
-    async (productId) => {
-      const { handlers, ctx, reply, createCheckout } = setup();
-      Object.assign(ctx, { match: [`product:${productId}`, productId] });
-      await handlers.get('/^product:([a-z0-9_-]+)$/')!(ctx);
-      expect(createCheckout).toHaveBeenCalledWith({
-        userId: 'user-id',
-        telegramId: '42',
-        productId,
-      });
-      const [message, options] = reply.mock.calls[0] as [string, { reply_markup: InlineKeyboard }];
-      expect(message).toContain(formatMoney(productId === 'monthly' ? 200000 : 300000));
-      expect(options.reply_markup.inline_keyboard.flat()).toContainEqual(
-        expect.objectContaining({ url: 'https://auth.robokassa.ru/Merchant/Index.aspx' }),
-      );
-    },
-  );
+  it('rejects an old quarterly button without creating a new payment', async () => {
+    const { handlers, ctx, reply, createCheckout } = setup();
+    Object.assign(ctx, { match: ['product:quarterly', 'quarterly'] });
+    await handlers.get('/^product:([a-z0-9_-]+)$/')!(ctx);
+    expect(createCheckout).not.toHaveBeenCalled();
+    expect(reply.mock.calls[0]?.[0]).toContain('Тариф недоступен');
+  });
 
-  it('offers an existing payer only the 1,000 ₽ monthly renewal', async () => {
-    const { handlers, ctx, reply } = setup(true);
+  it('offers an existing payer a 2,000 ₽ monthly renewal', async () => {
+    const { handlers, ctx, reply, createCheckout } = setup(true);
     await handlers.get('products')!(ctx);
+    expect(createCheckout).toHaveBeenCalledWith({
+      userId: 'user-id',
+      telegramId: '42',
+      productId: 'monthly',
+    });
+    expect(reply.mock.calls[0]?.[0]).toContain(formatMoney(200000));
     const options = reply.mock.calls[0]?.[1] as { reply_markup: InlineKeyboard };
-    expect(
-      options.reply_markup.inline_keyboard
-        .flat()
-        .some(
-          (button) =>
-            'callback_data' in button &&
-            button.callback_data === 'product:monthly' &&
-            button.text.includes('1 000'),
-        ),
-    ).toBe(true);
     expect(options.reply_markup.inline_keyboard.flat()).not.toContainEqual(
       expect.objectContaining({ callback_data: 'product:quarterly' }),
     );
@@ -119,8 +102,7 @@ describe('public production tariffs', () => {
   it('lets an active payer open the renewal checkout', async () => {
     const { handlers, ctx, createCheckout } = setup(true, true, true);
     await handlers.get('products')!(ctx);
-    Object.assign(ctx, { match: ['product:monthly', 'monthly'] });
-    await handlers.get('/^product:([a-z0-9_-]+)$/')!(ctx);
+    expect(createCheckout).toHaveBeenCalledOnce();
     expect(createCheckout).toHaveBeenCalledWith({
       userId: 'user-id',
       telegramId: '42',
@@ -134,12 +116,12 @@ describe('public production tariffs', () => {
       const { handlers, ctx, reply, createCheckout } = setup(paidBefore, false);
       await handlers.get('products')!(ctx);
       expect(reply.mock.calls[0]?.[0]).toContain('Продажи откроются завтра');
-      Object.assign(ctx, { match: ['product:quarterly', 'quarterly'] });
+      Object.assign(ctx, { match: ['product:monthly', 'monthly'] });
       await handlers.get('/^product:([a-z0-9_-]+)$/')!(ctx);
       expect(createCheckout).not.toHaveBeenCalled();
       const [message, options] = reply.mock.calls[1] as [string, { reply_markup: InlineKeyboard }];
       expect(message).toContain('Продажи откроются завтра');
-      expect(message).toContain(formatMoney(paidBefore ? 100000 : 300000));
+      expect(message).toContain(formatMoney(200000));
       expect(
         options.reply_markup.inline_keyboard
           .flat()

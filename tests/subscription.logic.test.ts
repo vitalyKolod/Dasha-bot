@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { calculateNewExpiry } from '../src/modules/subscriptions/subscription.logic.js';
+import { SubscriptionService } from '../src/modules/subscriptions/subscription.service.js';
+import type { SubscriptionRepository } from '../src/modules/subscriptions/subscription.repository.js';
+import type { PaymentDocument } from '../src/modules/payments/payment.model.js';
 
 const day = 86_400_000;
 describe('calculateNewExpiry', () => {
@@ -16,4 +19,22 @@ describe('calculateNewExpiry', () => {
   });
   it('returns null for lifetime', () =>
     expect(calculateNewExpiry(now, undefined, null)).toBeNull());
+});
+
+it('honors a 90-day payment created before the tariff was removed', async () => {
+  const upsert = vi.fn().mockImplementation((value: unknown) => Promise.resolve(value));
+  const service = new SubscriptionService({
+    findByTelegramId: vi.fn().mockResolvedValue(null),
+    upsert,
+  } as unknown as SubscriptionRepository);
+  const started = Date.now();
+  const result = await service.activate({
+    telegramId: '42',
+    productId: 'quarterly',
+    userId: 'user-id',
+    _id: 'payment-id',
+  } as unknown as PaymentDocument);
+  expect(result.productId).toBe('quarterly');
+  expect(result.expiresAt?.getTime()).toBeGreaterThanOrEqual(started + 90 * day);
+  expect(result.expiresAt?.getTime()).toBeLessThanOrEqual(Date.now() + 90 * day);
 });

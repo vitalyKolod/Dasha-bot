@@ -30,7 +30,7 @@ export const products: readonly Product[] = [
     durationDays: 90,
     price: 300000,
     currency: 'RUB',
-    active: true,
+    active: false,
     receiptDescription: 'Доступ в кулинарный клуб на 90 дней',
   },
   {
@@ -46,6 +46,9 @@ export const products: readonly Product[] = [
   },
 ];
 
-export const getProduct = (id: string) =>
-  products.find((product) => product.id === id && product.active);
+export const getProductById = (id: string) => products.find((product) => product.id === id);
+export const getProduct = (id: string) => {
+  const product = getProductById(id);
+  return product?.active ? product : undefined;
+};
 export const getActiveProducts = () => products.filter((product) => product.active);

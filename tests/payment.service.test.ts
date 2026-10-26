@@ -115,31 +115,26 @@ describe('checkout prices', () => {
     return { created, providerCheckout, hasSucceededPayment };
   }
 
-  it('charges the first purchase according to the selected tariff', async () => {
+  it('charges 2,000 ₽ for the only available first purchase', async () => {
     const monthly = await checkout('monthly', false);
-    const quarterly = await checkout('quarterly', false);
     expect(monthly.created).toMatchObject({
       productId: 'monthly',
       amount: 200000,
       purpose: 'new_subscription',
       testMode: true,
     });
-    expect(quarterly.created).toMatchObject({
-      productId: 'quarterly',
-      amount: 300000,
-      purpose: 'new_subscription',
-    });
+    await expect(checkout('quarterly', false)).rejects.toThrow('Тариф недоступен');
   });
 
-  it('charges a previous payer 1,000 ₽ for 30 days regardless of selected tariff', async () => {
+  it('charges a previous payer 2,000 ₽ for 30 days, including an old tariff button', async () => {
     const renewal = await checkout('quarterly', true);
     expect(renewal.created).toMatchObject({
       productId: 'monthly',
-      amount: 100000,
+      amount: 200000,
       purpose: 'renewal',
     });
     expect(renewal.providerCheckout).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 100000 }),
+      expect.objectContaining({ amount: 200000 }),
     );
   });
 

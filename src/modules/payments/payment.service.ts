@@ -43,7 +43,7 @@ export class PaymentService {
     const renewal = await this.hasPaidBefore(input.telegramId);
     const product = getProduct(input.livePilot || renewal ? 'monthly' : input.productId);
     if (!product) throw new AppError('Тариф недоступен', 404, 'PRODUCT_NOT_FOUND');
-    const amount = input.livePilot ? LIVE_PILOT_AMOUNT_KOPECKS : renewal ? 100000 : product.price;
+    const amount = input.livePilot ? LIVE_PILOT_AMOUNT_KOPECKS : product.price;
     let payment: Awaited<ReturnType<PaymentRepository['create']>> | undefined;
     let invoiceId = '';
     for (let attempt = 0; attempt < 5; attempt++) {

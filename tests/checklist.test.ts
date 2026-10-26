@@ -37,7 +37,7 @@ describe('checklist launch', () => {
     await sendWelcome(ctx);
     expect(reply).toHaveBeenCalledWith(startMessage, expect.any(Object));
     expect(startMessage).toContain('Первый месяц — 2 000 ₽');
-    expect(startMessage).toContain('Продление — 1 000 ₽/мес.');
+    expect(startMessage).toContain('Продление — 2 000 ₽/мес.');
     expect(replyWithPhoto).not.toHaveBeenCalled();
     expect(getActive).toHaveBeenCalledWith('42');
   });

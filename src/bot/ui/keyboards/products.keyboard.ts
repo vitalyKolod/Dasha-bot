@@ -1,5 +1,5 @@
 import { InlineKeyboard } from 'grammy';
-import type { Product } from '../../../config/products.js';
+import { getProduct, type Product } from '../../../config/products.js';
 import type { AppConfig } from '../../../config/env.js';
 import { formatMoney } from '../helpers/formatMoney.js';
 
@@ -11,7 +11,10 @@ export const productsKeyboard = (
   const keyboard = new InlineKeyboard();
   if (renewal)
     return keyboard
-      .text('🔁 Продлить на месяц · 1 000 ₽', `${callbackPrefix}:monthly`)
+      .text(
+        `🔁 Продлить на месяц · ${formatMoney(getProduct('monthly')!.price)}`,
+        `${callbackPrefix}:monthly`,
+      )
       .row()
       .text('← Назад', 'menu');
   products.forEach((product) =>

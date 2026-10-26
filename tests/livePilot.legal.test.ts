@@ -50,6 +50,6 @@ describe('live pilot terms', () => {
     } as unknown as BotContext);
     const text = reply.mock.calls[0]?.[0] as string;
     expect(text).toContain('Продление на 1 месяц');
-    expect(text.replace(/\s/g, ' ')).toContain('Стоимость: <b>1 000 ₽</b>');
+    expect(text.replace(/\s/g, ' ')).toContain('Стоимость: <b>2 000 ₽</b>');
   });
 });
