@@ -15,6 +15,7 @@ function setup(paidBefore = false, salesOpen = true, active = false) {
   } as unknown as Bot<BotContext>;
   registerProductHandlers(bot);
   const reply = vi.fn().mockResolvedValue({});
+  const editMessageText = vi.fn().mockResolvedValue({});
   const createCheckout = vi.fn().mockImplementation(({ productId }: { productId: string }) =>
     Promise.resolve({
       payment: {
@@ -42,10 +43,11 @@ function setup(paidBefore = false, salesOpen = true, active = false) {
       payments: { createCheckout, hasPaidBefore: vi.fn().mockResolvedValue(paidBefore) },
     },
     reply,
+    editMessageText,
     answerCallbackQuery: vi.fn().mockResolvedValue({}),
-    logger: { debug: vi.fn() },
+    logger: { debug: vi.fn(), warn: vi.fn() },
   } as unknown as BotContext;
-  return { handlers, command, ctx, reply, createCheckout };
+  return { handlers, command, ctx, reply, editMessageText, createCheckout };
 }
 
 describe('public production tariffs', () => {
@@ -74,6 +76,19 @@ describe('public production tariffs', () => {
         (button) => 'callback_data' in button && button.callback_data === 'product:quarterly',
       ),
     ).toBe(false);
+  });
+
+  it('returns an already-sent tariff screen to the menu without creating another payment', async () => {
+    const { handlers, ctx, editMessageText, createCheckout } = setup();
+    Object.assign(ctx, {
+      callbackQuery: { message: { text: '🍳 Клуб Даши · 1 месяц\n\n💰 Стоимость: 2 000 ₽' } },
+    });
+    await handlers.get('products')!(ctx);
+    expect(createCheckout).not.toHaveBeenCalled();
+    expect(editMessageText).toHaveBeenCalledWith(
+      expect.stringContaining('Добро пожаловать!'),
+      expect.any(Object),
+    );
   });
 
   it('rejects an old quarterly button without creating a new payment', async () => {

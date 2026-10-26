@@ -10,6 +10,7 @@ import {
 import { insideMessage } from '../ui/messages/start.message.js';
 import { InlineKeyboard } from 'grammy';
 import { showWaitlist } from './waitlist.handler.js';
+import { showMainMenu } from './menu.handler.js';
 import { renderScreen } from '../ui/renderScreen.js';
 
 export async function renderProductCheckout(ctx: BotContext, product: Product): Promise<void> {
@@ -67,6 +68,18 @@ export function registerProductHandlers(bot: Bot<BotContext>): void {
     });
   });
   bot.callbackQuery('products', async (ctx) => {
+    const previousMessage = ctx.callbackQuery?.message;
+    const previousText = previousMessage
+      ? 'text' in previousMessage
+        ? previousMessage.text
+        : 'caption' in previousMessage
+          ? previousMessage.caption
+          : undefined
+      : undefined;
+    if (getActiveProducts().length === 1 && previousText?.includes('Клуб Даши ·')) {
+      await showMainMenu(ctx);
+      return;
+    }
     if (
       ctx.config.PRE_REGISTRATION &&
       !ctx.config.CHECKLIST_MODE &&
