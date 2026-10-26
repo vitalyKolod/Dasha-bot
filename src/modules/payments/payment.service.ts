@@ -44,6 +44,19 @@ export class PaymentService {
     const product = getProduct(input.livePilot || renewal ? 'monthly' : input.productId);
     if (!product) throw new AppError('Тариф недоступен', 404, 'PRODUCT_NOT_FOUND');
     const amount = input.livePilot ? LIVE_PILOT_AMOUNT_KOPECKS : product.price;
+    if (!input.livePilot) {
+      const existing = await this.payments.findReusableCheckout({
+        provider: this.provider.name,
+        telegramId: input.telegramId,
+        productId: product.id,
+        amount,
+        purpose: renewal ? 'renewal' : 'new_subscription',
+        testMode: this.provider.name === 'robokassa' && this.config.ROBOKASSA_TEST_MODE,
+        offerVersion: this.config.OFFER_VERSION,
+        createdAfter: new Date(Date.now() - 30 * 60_000),
+      });
+      if (existing) return { payment: existing, token: undefined };
+    }
     let payment: Awaited<ReturnType<PaymentRepository['create']>> | undefined;
     let invoiceId = '';
     for (let attempt = 0; attempt < 5; attempt++) {

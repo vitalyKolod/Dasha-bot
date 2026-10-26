@@ -76,8 +76,10 @@ describe('checkout prices', () => {
     paidBefore: boolean,
     testMode = true,
     livePilot = false,
+    reusableCheckout: Record<string, unknown> | null = null,
   ) {
     const hasSucceededPayment = vi.fn().mockResolvedValue(paidBefore);
+    const findReusableCheckout = vi.fn().mockResolvedValue(reusableCheckout);
     let created: Record<string, unknown> = {};
     const create = vi.fn((data: Record<string, unknown>) => {
       created = { ...data, _id: new Types.ObjectId() };
@@ -90,7 +92,12 @@ describe('checkout prices', () => {
       checkoutUrl: 'https://example.org/checkout',
       providerInvoiceId: '123',
     });
-    const payments = { hasSucceededPayment, create, setCheckout } as unknown as PaymentRepository;
+    const payments = {
+      hasSucceededPayment,
+      findReusableCheckout,
+      create,
+      setCheckout,
+    } as unknown as PaymentRepository;
     const process = new PaymentService(
       { name: 'robokassa', createCheckout: providerCheckout } as unknown as PaymentProvider,
       {
@@ -106,14 +113,36 @@ describe('checkout prices', () => {
       {} as SubscriptionService,
     );
     vi.spyOn(process.returnTokens, 'create').mockResolvedValue('token');
-    await process.createCheckout({
+    const result = await process.createCheckout({
       userId: new Types.ObjectId(),
       telegramId: '42',
       productId,
       ...(livePilot ? { livePilot: true } : {}),
     });
-    return { created, providerCheckout, hasSucceededPayment };
+    return { created, create, result, findReusableCheckout, providerCheckout, hasSucceededPayment };
   }
+
+  it('reuses a recent matching payment link without creating another order', async () => {
+    const existing = {
+      productId: 'monthly',
+      amount: 200000,
+      checkoutUrl: 'https://auth.robokassa.ru/Merchant/Index.aspx',
+      status: 'pending',
+    };
+    const checkoutResult = await checkout('monthly', false, false, false, existing);
+    expect(checkoutResult.result.payment).toBe(existing);
+    expect(checkoutResult.create).not.toHaveBeenCalled();
+    expect(checkoutResult.providerCheckout).not.toHaveBeenCalled();
+    expect(checkoutResult.findReusableCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: 'monthly',
+        amount: 200000,
+        purpose: 'new_subscription',
+        testMode: false,
+        offerVersion: '1',
+      }),
+    );
+  });
 
   it('charges 2,000 ₽ for the only available first purchase', async () => {
     const monthly = await checkout('monthly', false);
@@ -165,5 +194,6 @@ describe('checkout prices', () => {
     });
     expect(pilot.providerCheckout).toHaveBeenCalledWith(expect.objectContaining({ amount: 5000 }));
     expect(pilot.hasSucceededPayment).toHaveBeenCalledWith('robokassa', '42', false);
+    expect(pilot.findReusableCheckout).not.toHaveBeenCalled();
   });
 });

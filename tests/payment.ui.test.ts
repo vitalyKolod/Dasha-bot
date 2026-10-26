@@ -46,5 +46,8 @@ describe('product checkout screen', () => {
     ).toBe(false);
     expect(buttons.some((button) => button.text === '📄 Оферта')).toBe(true);
     expect(buttons.some((button) => button.text === '🔐 Политика')).toBe(true);
+    expect(buttons).toContainEqual(
+      expect.objectContaining({ text: '← Назад', callback_data: 'menu' }),
+    );
   });
 });

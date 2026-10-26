@@ -13,6 +13,30 @@ export class PaymentRepository {
   findLatestByTelegramId(provider: string, telegramId: string) {
     return PaymentModel.findOne({ provider, telegramId }).sort({ createdAt: -1 });
   }
+  findReusableCheckout(input: {
+    provider: string;
+    telegramId: string;
+    productId: string;
+    amount: number;
+    purpose: 'new_subscription' | 'renewal';
+    testMode: boolean;
+    offerVersion: string;
+    createdAfter: Date;
+  }) {
+    return PaymentModel.findOne({
+      provider: input.provider,
+      telegramId: input.telegramId,
+      productId: input.productId,
+      amount: input.amount,
+      purpose: input.purpose,
+      testMode: input.testMode,
+      offerVersion: input.offerVersion,
+      isPilotPayment: { $ne: true },
+      status: 'pending',
+      checkoutUrl: { $exists: true, $ne: '' },
+      createdAt: { $gte: input.createdAfter },
+    }).sort({ createdAt: -1 });
+  }
   async hasSucceededPayment(provider: string, telegramId: string, testMode: boolean) {
     return Boolean(
       await PaymentModel.exists({
